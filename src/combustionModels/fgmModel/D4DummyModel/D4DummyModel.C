@@ -63,7 +63,7 @@ void Foam::combustionModels::D4DummyModel::tableLookup()
         x[1] = Param2Cells[cellI];
         x[2] = Param3Cells[cellI];
         x[3] = Param4Cells[cellI];
-       
+
         // Determine upper bound indices and weights for interpolation
         ub = solver_.upperBounds(x, solver_.sizeTableNames() - 1);
         pos = solver_.position(ub, x, solver_.sizeTableNames() - 1);

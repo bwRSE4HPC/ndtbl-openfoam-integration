@@ -60,17 +60,17 @@ int main(int argc, char *argv[])
 
     // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-    runTime++;    
+    runTime++;
 
     dt = runTime.elapsedCpuTime();
     Info<< nl << "Execution time before table lookup = " << runTime.elapsedCpuTime() << " s" << endl;
-    
+
     reaction->correct();
-    
+
     dt -= runTime.elapsedCpuTime();
     Info<< "Execution time after table lookup = " << runTime.elapsedCpuTime() << " s" << endl;
     Info<< "Total table lookup time = " << -dt << " s" << nl << endl;
-    
+
     runTime.write();
 
     // Evaluate total memory usage

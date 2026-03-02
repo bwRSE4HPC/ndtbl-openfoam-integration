@@ -85,7 +85,7 @@ public:
 
     //- Interpolate tableValues
     virtual scalar interpolate(const List<int>& ub, const scalarList& pos) const = 0;
-    
+
     //- Return table Size
     virtual inline List<int> tableSize() const = 0;
 };

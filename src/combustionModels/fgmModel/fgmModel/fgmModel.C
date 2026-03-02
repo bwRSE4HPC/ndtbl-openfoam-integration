@@ -37,7 +37,7 @@ Foam::combustionModels::fgmModel::fgmModel
 :
     combustionModel(modelType, thermo, turb, trans, combustionProperties)
 {}
-   
+
 // * * * * * * * * * * * * * * * * Destructors * * * * * * * * * * * * * * * //
 
 Foam::combustionModels::fgmModel::~fgmModel()

@@ -97,7 +97,7 @@ public:
     // Member Functions
 
         //- Correct combustion rate
-        virtual void correct() = 0;  
+        virtual void correct() = 0;
 
     // I-O
         //- Update properties

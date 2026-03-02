@@ -64,7 +64,7 @@ Foam::autoPtr<Foam::multidimensionalTable>
 Foam::multidimensionalTable::New(const fvMesh& mesh, const word& tableName, const hashedWordList& paramNames)
 {
    int tmpDimension = paramNames.size();
-   
+
    word modelName = "D" + std::to_string(tmpDimension) + "LinearInterpolation";
 
    dictionaryConstructorTable::iterator cstrIter = dictionaryConstructorTablePtr_->find(modelName);

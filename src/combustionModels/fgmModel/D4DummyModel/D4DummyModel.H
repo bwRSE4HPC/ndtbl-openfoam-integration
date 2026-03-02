@@ -55,13 +55,13 @@ class D4DummyModel
 private:
 
     // Private Member
-    
+
         //- Disallow copy construct
 	    D4DummyModel(const D4DummyModel&);
 
         //- Disallow default bitwise assignment
         void operator=(const D4DummyModel&);
-        
+
         //- Look-up parameter
         volScalarField Param1_;
         volScalarField Param2_;
