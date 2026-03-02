@@ -1,0 +1,14 @@
+combustionModel/combustionModel.C
+combustionModel/combustionModelNew.C
+
+multidimensionalTable/D4LinearInterpolation/D4LinearInterpolation.C
+multidimensionalTable/multidimensionalTable/multidimensionalTable.C
+
+tableSolver/tableSolver/tableSolver.C
+
+fgmModel/D4DummyModel/D4DummyModel.C
+fgmModel/fgmModel/fgmModel.C
+
+noCombustion/noCombustion.C
+
+LIB = $(FOAM_USER_LIBBIN)/libbwRSE4HPCcombustionModels

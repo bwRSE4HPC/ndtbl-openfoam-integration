@@ -1,0 +1,15 @@
+#!/bin/sh
+. $WM_PROJECT_DIR/bin/tools/RunFunctions
+
+# Delete time folders
+foamListTimes -rm
+rm -r 0
+
+# Delete log files
+rm -r ./log*
+
+# Delete mesh
+rm -r ./constant/polyMesh
+
+# Delete tables
+rm -r ./constant/*_table
