@@ -122,14 +122,14 @@ Foam::hashedWordList Foam::combustionModels::D4DummyModel::parameters()
 
 Foam::hashedWordList Foam::combustionModels::D4DummyModel::tables()
 {
-	hashedWordList tableNames;
+    hashedWordList tableNames;
 
     tableNames.append("Table1");
     tableNames.append("Table2");
     tableNames.append("Table3");
     tableNames.append("Table4");
 
-	return tableNames;
+    return tableNames;
 }
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //

@@ -62,7 +62,7 @@ namespace combustionModels
 
 class fgmModel
 :
-	public combustionModel
+    public combustionModel
 {
 
 private:
@@ -70,7 +70,7 @@ private:
     // Private Member
 
         //- Disallow copy construct
-	    fgmModel(const fgmModel&);
+        fgmModel(const fgmModel&);
 
         //- Disallow default bitwise assignment
         void operator=(const fgmModel&);
@@ -85,7 +85,7 @@ public:
         fgmModel
         (
             const word& modelType,
-			const fluidReactionThermo& thermo,
+            const fluidReactionThermo& thermo,
             const compressibleMomentumTransportModel& turb,
             const fluidReactionThermophysicalTransportModel& trans,
             const word& combustionProperties

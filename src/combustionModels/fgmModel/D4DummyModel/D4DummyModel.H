@@ -49,7 +49,7 @@ namespace combustionModels
 
 class D4DummyModel
 :
-	public fgmModel
+    public fgmModel
 {
 
 private:
@@ -57,7 +57,7 @@ private:
     // Private Member
 
         //- Disallow copy construct
-	    D4DummyModel(const D4DummyModel&);
+        D4DummyModel(const D4DummyModel&);
 
         //- Disallow default bitwise assignment
         void operator=(const D4DummyModel&);
@@ -75,7 +75,7 @@ private:
         volScalarField Table4_;
 
         //- Tables
-	    tableSolver solver_;
+        tableSolver solver_;
 
     // Member Functions
 
@@ -99,7 +99,7 @@ public:
         D4DummyModel
         (
             const word& modelType,
-			const fluidReactionThermo& thermo,
+            const fluidReactionThermo& thermo,
             const compressibleMomentumTransportModel& turb,
             const fluidReactionThermophysicalTransportModel& trans,
             const word& combustionProperties

@@ -46,7 +46,7 @@ class D4LinearInterpolation
 
 private:
 
-	//- Disallow default bitwise copy construct
+    //- Disallow default bitwise copy construct
     D4LinearInterpolation(const D4LinearInterpolation&);
 
     //- Disallow default bitwise assignment

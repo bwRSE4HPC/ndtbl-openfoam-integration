@@ -51,21 +51,21 @@ class tableSolver
 
 protected:
 
-	//- List with tabulated properties
-	wordList tableNames_;
+    //- List with tabulated properties
+    wordList tableNames_;
 
-    	//- List with tabulation parameters
-	wordList paramNames_;
+    //- List with tabulation parameters
+    wordList paramNames_;
 
     //- List with table resolutions
-	List<List<int> > paramSize_;
+    List<List<int> > paramSize_;
 
-	//- Chemistry tables of all tabulated properties
-	PtrList<multidimensionalTable> tables_;
+    //- Chemistry tables of all tabulated properties
+    PtrList<multidimensionalTable> tables_;
 
 public:
 
-	//- Runtime type information
+    //- Runtime type information
     TypeName("tableSolver");
 
     // Declare run-time constructor selection table
@@ -95,7 +95,7 @@ public:
     //- Interpolate from lookup-table
     scalar interpolate(const List<int>& ub , const scalarList& pos, const label& i) const;
 
-    // - Return the number of tables
+    //- Return the number of tables
     int sizeTableNames() const;
 };
 

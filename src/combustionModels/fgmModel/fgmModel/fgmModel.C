@@ -28,11 +28,11 @@ License
 
 Foam::combustionModels::fgmModel::fgmModel
 (
-	    const word& modelType,
-		const fluidReactionThermo& thermo,
-	    const compressibleMomentumTransportModel& turb,
+        const word& modelType,
+        const fluidReactionThermo& thermo,
+        const compressibleMomentumTransportModel& turb,
         const fluidReactionThermophysicalTransportModel& trans,
-	    const word& combustionProperties
+        const word& combustionProperties
 )
 :
     combustionModel(modelType, thermo, turb, trans, combustionProperties)

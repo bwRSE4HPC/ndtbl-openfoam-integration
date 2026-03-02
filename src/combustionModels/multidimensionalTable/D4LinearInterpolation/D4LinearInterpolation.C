@@ -40,7 +40,7 @@ addToRunTimeSelectionTable(multidimensionalTable, D4LinearInterpolation, diction
 
 D4LinearInterpolation::D4LinearInterpolation(const fvMesh& mesh, const word& tableName)
 :
-	multidimensionalTable(mesh, tableName),
+    multidimensionalTable(mesh, tableName),
     tableValues_(this->lookup<List<List<List<scalarList> > > >(tableName))
 {}
 
@@ -82,7 +82,7 @@ inline List<int> D4LinearInterpolation::tableSize() const
     tableSize[2] = tableValues_[0][0].size();
     tableSize[3] = tableValues_[0][0][0].size();
 
-	return tableSize;
+    return tableSize;
 }
 
 } // End Foam namespace

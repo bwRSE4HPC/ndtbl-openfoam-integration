@@ -46,15 +46,15 @@ class fvMesh;
 
 class multidimensionalTable
 :
-	public IOdictionary
+    public IOdictionary
 {
 private:
 
-	word tableName_;
+    word tableName_;
 
 public:
 
-	//- Runtime type information
+    //- Runtime type information
     TypeName("multidimensionalTable");
 
     // Declare run-time constructor selection table
