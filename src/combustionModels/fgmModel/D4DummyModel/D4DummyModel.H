@@ -75,7 +75,7 @@ private:
         volScalarField Table4_;
 
         //- Tables
-        tableSolver solver_;
+        tableSolver<4, 4> solver_;
 
     // Member Functions
 

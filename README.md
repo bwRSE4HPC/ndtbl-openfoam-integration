@@ -90,17 +90,6 @@ This is the heart of the benchmark.
 - It converts normalized input coordinates into upper-bound indices and local
   interpolation positions.
 
-`src/combustionModels/multidimensionalTable/*`
-
-- `multidimensionalTable` is an abstract table container.
-- The selected implementation is chosen by the number of parameters.
-- With four parameters, it selects `D4LinearInterpolation`.
-
-`src/combustionModels/multidimensionalTable/D4LinearInterpolation/*`
-
-- Stores a 4D nested list loaded from an OpenFOAM dictionary.
-- Performs explicit 4D linear interpolation.
-
 ### 5. Fallback model
 
 `src/combustionModels/noCombustion/*`
@@ -158,4 +147,3 @@ If you want to understand the repo quickly, start here:
 3. `src/combustionModels/combustionModel/combustionModelNew.C`
 4. `src/combustionModels/fgmModel/D4DummyModel/D4DummyModel.C`
 5. `src/combustionModels/tableSolver/tableSolver/tableSolver.C`
-6. `src/combustionModels/multidimensionalTable/D4LinearInterpolation/D4LinearInterpolation.C`

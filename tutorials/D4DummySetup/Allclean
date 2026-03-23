@@ -12,4 +12,4 @@ rm -r ./log*
 rm -r ./constant/polyMesh
 
 # Delete tables
-rm -r ./constant/*_table
+rm -f ./constant/Tables.ndtbl

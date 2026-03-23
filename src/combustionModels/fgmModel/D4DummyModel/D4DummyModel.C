@@ -25,6 +25,8 @@ License
 #include "D4DummyModel.H"
 #include "addToRunTimeSelectionTable.H"
 
+#include <array>
+
 namespace Foam
 {
 namespace combustionModels
@@ -51,9 +53,8 @@ void Foam::combustionModels::D4DummyModel::tableLookup()
     scalarField& Table4Cells = Table4_.primitiveFieldRef();
 
     // Local (in cell) look-up parameters
-    scalarList x(4); // Local parameter value
-    List<int> ub(4); // Upper bound index for linear interpolation
-    scalarList pos(4); // Interpolation weight
+    std::array<scalar, 4> x = { scalar(0), scalar(0), scalar(0), scalar(0) };
+    std::array<scalar, 4> values = { scalar(0), scalar(0), scalar(0), scalar(0) };
 
     // For internal cells
     forAll(Param1Cells, cellI)
@@ -64,15 +65,11 @@ void Foam::combustionModels::D4DummyModel::tableLookup()
         x[2] = Param3Cells[cellI];
         x[3] = Param4Cells[cellI];
 
-        // Determine upper bound indices and weights for interpolation
-        ub = solver_.upperBounds(x, solver_.sizeTableNames() - 1);
-        pos = solver_.position(ub, x, solver_.sizeTableNames() - 1);
-
-        // Perform interpolation
-        Table1Cells[cellI] = solver_.interpolate(ub, pos, (solver_.sizeTableNames() - 4));
-        Table2Cells[cellI] = solver_.interpolate(ub, pos, (solver_.sizeTableNames() - 3));
-        Table3Cells[cellI] = solver_.interpolate(ub, pos, (solver_.sizeTableNames() - 2));
-        Table4Cells[cellI] = solver_.interpolate(ub, pos, (solver_.sizeTableNames() - 1));
+        solver_.interpolate(x, values);
+        Table1Cells[cellI] = values[0];
+        Table2Cells[cellI] = values[1];
+        Table3Cells[cellI] = values[2];
+        Table4Cells[cellI] = values[3];
     }
 
     // For bundary faces
@@ -96,15 +93,11 @@ void Foam::combustionModels::D4DummyModel::tableLookup()
             x[2] = pParam3[facei];
             x[3] = pParam4[facei];
 
-            // Determine upper bound indices and weights for interpolation
-            ub = solver_.upperBounds(x, solver_.sizeTableNames() - 1);
-            pos = solver_.position(ub, x, solver_.sizeTableNames() - 1);
-
-            // Perform interpolation
-            pTable1[facei] = solver_.interpolate(ub, pos, (solver_.sizeTableNames() - 4));
-            pTable2[facei] = solver_.interpolate(ub, pos, (solver_.sizeTableNames() - 3));
-            pTable3[facei] = solver_.interpolate(ub, pos, (solver_.sizeTableNames() - 2));
-            pTable4[facei] = solver_.interpolate(ub, pos, (solver_.sizeTableNames() - 1));
+            solver_.interpolate(x, values);
+            pTable1[facei] = values[0];
+            pTable2[facei] = values[1];
+            pTable3[facei] = values[2];
+            pTable4[facei] = values[3];
         }
     }
 }
@@ -244,7 +237,7 @@ Foam::combustionModels::D4DummyModel::D4DummyModel
         this->mesh(),
         dimensionedScalar(dimless, 0)
     ),
-    solver_(tableSolver(this->mesh(), tables(), parameters()))
+    solver_(tableSolver<4, 4>(this->coeffs(), tables(), parameters()))
 {}
 
 // * * * * * * * * * * * * * * * * Destructors * * * * * * * * * * * * * * * //

@@ -6,11 +6,8 @@
 TABLERESOLUTION="51"                # select table resolution (2, 21, 31, 41, 46, 51)
 PARALLEL=true                       # parallel mode?
 
-# Link tables
-ln -sf ../tables/tables_"$TABLERESOLUTION"/Table1_table ./constant
-ln -sf ../tables/tables_"$TABLERESOLUTION"/Table2_table ./constant
-ln -sf ../tables/tables_"$TABLERESOLUTION"/Table3_table ./constant
-ln -sf ../tables/tables_"$TABLERESOLUTION"/Table4_table ./constant
+# Link grouped ndtbl binary
+ln -sf ../tables/tables_"$TABLERESOLUTION"/Tables.ndtbl ./constant
 
 # Copy initial conditions
 cp -rf 0_orig 0
