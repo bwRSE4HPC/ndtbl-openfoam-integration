@@ -14,7 +14,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     steps:
       - uses: actions/checkout@v6
@@ -22,7 +22,7 @@ jobs:
       - name: Set up OpenFOAM
         uses: gerlero/setup-openfoam@v1
         with:
-          openfoam-version: 11
+          openfoam-version: 10
 
       - name: Build project
         shell: bash
