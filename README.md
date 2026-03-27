@@ -1,4 +1,7 @@
-# bwRSE4HPCFoam Project Summary
+# bwRSE4HPCFoam Project
+
+[![Build](https://github.com/bwRSE4HPC/bwRSE4HPCFoam/actions/workflows/ci.yml/badge.svg)](https://github.com/bwRSE4HPC/bwRSE4HPCFoam/actions)
+
 
 ## What this repo is
 
