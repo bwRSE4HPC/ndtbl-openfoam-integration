@@ -36,6 +36,7 @@ Foam::autoPtr<Foam::combustionModel> Foam::combustionModel::New
     const word& combustionProperties
 )
 {
+    word requestedModelType(combustionModels::noCombustion::typeName);
     typeIOobject<IOdictionary> combIO
     (
         IOobject
@@ -49,10 +50,10 @@ Foam::autoPtr<Foam::combustionModel> Foam::combustionModel::New
         )
     );
 
-    word modelType(combustionModels::noCombustion::typeName);
     if (combIO.headerOk())
     {
-        IOdictionary(combIO).lookup(combustionModel::typeName) >> modelType;
+        IOdictionary(combIO).lookup(combustionModel::typeName)
+            >> requestedModelType;
     }
     else
     {
@@ -61,7 +62,9 @@ Foam::autoPtr<Foam::combustionModel> Foam::combustionModel::New
             << " not found" << endl;
     }
 
-    Info<< "Selecting combustion model " << modelType << endl;
+    Info<< "Selecting combustion model " << requestedModelType << endl;
+
+    word modelType(requestedModelType);
 
     const wordList cmpts2(basicThermo::splitThermoName(modelType, 2));
     const wordList cmpts3(basicThermo::splitThermoName(modelType, 3));
@@ -75,6 +78,8 @@ Foam::autoPtr<Foam::combustionModel> Foam::combustionModel::New
             << "obtained directly from the thermodynamics. Actually selecting "
             << "combustion model " << modelType << "." << endl;
     }
+
+    const word coeffsModelType(modelType);
 
     // Select fgmModel
     if (modelType == "fgmModel")
@@ -100,7 +105,9 @@ Foam::autoPtr<Foam::combustionModel> Foam::combustionModel::New
 
     return autoPtr<combustionModel>
     (
-        cstrIter()(modelType, thermo, turb, trans, combustionProperties)
+        // Preserve the public selection name for coefficient lookup even
+        // when an internal implementation type backs the alias.
+        cstrIter()(coeffsModelType, thermo, turb, trans, combustionProperties)
     );
 }
 
