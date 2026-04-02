@@ -9,3 +9,6 @@ tutorials/D4DummySetup/tables/
 tutorials/D4DummySetup/constant/polyMesh/
 tutorials/D4DummySetup/constant/*_table
 tutorials/**/log.*
+
+# ndtbl binary files
+*.ndtbl
