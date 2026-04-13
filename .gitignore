@@ -5,6 +5,7 @@ src/combustionModels/lnInclude/
 
 tutorials/D4DummySetup/0/
 tutorials/D4DummySetup/1/
+tutorials/D4DummySetup/benchmark-results/
 tutorials/D4DummySetup/tables/
 tutorials/D4DummySetup/constant/polyMesh/
 tutorials/D4DummySetup/constant/*_table
