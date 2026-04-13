@@ -3,13 +3,13 @@
 
 # Delete time folders
 foamListTimes -rm
-rm -r 0
+rm -rf 0
 
 # Delete log files
-rm -r ./log*
+rm -rf ./log*
 
 # Delete mesh
-rm -r ./constant/polyMesh
+rm -rf ./constant/polyMesh
 
 # Delete tables
 rm -f ./constant/Tables.ndtbl
