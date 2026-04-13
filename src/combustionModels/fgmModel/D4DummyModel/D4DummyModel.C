@@ -65,7 +65,7 @@ void Foam::combustionModels::D4DummyModel::tableLookup()
         x[2] = Param3Cells[cellI];
         x[3] = Param4Cells[cellI];
 
-        solver_.interpolate(x, values);
+        solver_.lookup(x, values);
         Table1Cells[cellI] = values[0];
         Table2Cells[cellI] = values[1];
         Table3Cells[cellI] = values[2];
@@ -93,7 +93,7 @@ void Foam::combustionModels::D4DummyModel::tableLookup()
             x[2] = pParam3[facei];
             x[3] = pParam4[facei];
 
-            solver_.interpolate(x, values);
+            solver_.lookup(x, values);
             pTable1[facei] = values[0];
             pTable2[facei] = values[1];
             pTable3[facei] = values[2];

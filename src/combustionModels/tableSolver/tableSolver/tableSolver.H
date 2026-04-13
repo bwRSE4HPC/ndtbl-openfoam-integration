@@ -93,10 +93,12 @@ public:
 
         const dictionary& tableConfigs = coeffs.subDict("ndtblTables");
         std::map<std::string, std::size_t> groupIndexByPath;
+        std::array<bool, NOut> outputBound = {};
 
         forAll(tableNames, outputI)
         {
             const word& tableName = tableNames[outputI];
+            const std::size_t outputIndex = static_cast<std::size_t>(outputI);
 
             if (!tableConfigs.found(tableName))
             {
@@ -141,9 +143,10 @@ public:
             try
             {
                 fieldBinding binding;
-                binding.outputIndex = static_cast<std::size_t>(outputI);
+                binding.outputIndex = outputIndex;
                 binding.fieldIndex = groups_[groupIndex].group.field_index(fieldName);
                 groups_[groupIndex].bindings.push_back(binding);
+                outputBound[outputIndex] = true;
             }
             catch (const std::exception& error)
             {
@@ -154,12 +157,21 @@ public:
                     << exit(FatalError);
             }
         }
+
+        for (std::size_t outputI = 0; outputI < NOut; ++outputI)
+        {
+            if (!outputBound[outputI])
+            {
+                FatalErrorInFunction
+                    << "Output index " << outputI
+                    << " is not bound to an ndtbl field"
+                    << exit(FatalError);
+            }
+        }
     }
 
-    void interpolate(const std::array<scalar, Dim>& x, std::array<scalar, NOut>& values) const
+    void lookup(const std::array<scalar, Dim>& x, std::array<scalar, NOut>& values) const
     {
-        values.fill(scalar(0));
-
         std::array<double, Dim> query;
         for (std::size_t axis = 0; axis < Dim; ++axis)
         {
@@ -169,23 +181,13 @@ public:
         for (std::size_t groupI = 0; groupI < groups_.size(); ++groupI)
         {
             const tableGroup& group = groups_[groupI];
-            try
-            {
-                group.group.evaluate_all_into(query, group.scratchValues.data());
+            group.group.evaluate_all_into(query, group.scratchValues.data());
 
-                for (std::size_t bindingI = 0; bindingI < group.bindings.size(); ++bindingI)
-                {
-                    const fieldBinding& binding = group.bindings[bindingI];
-                    values[binding.outputIndex] =
-                        static_cast<scalar>(group.scratchValues[binding.fieldIndex]);
-                }
-            }
-            catch (const std::exception& error)
+            for (std::size_t bindingI = 0; bindingI < group.bindings.size(); ++bindingI)
             {
-                FatalErrorInFunction
-                    << "Failed to evaluate ndtbl file " << group.filePath
-                    << ": " << error.what()
-                    << exit(FatalError);
+                const fieldBinding& binding = group.bindings[bindingI];
+                values[binding.outputIndex] =
+                    static_cast<scalar>(group.scratchValues[binding.fieldIndex]);
             }
         }
     }
