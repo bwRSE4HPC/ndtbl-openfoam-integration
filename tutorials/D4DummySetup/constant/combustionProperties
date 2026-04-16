@@ -18,6 +18,9 @@ combustionModel  fgmModel;
 
 fgmModelCoeffs
 {
+    // Optional ndtbl interpolation method. Default is linear.
+    //interpolation cubic;
+
     ndtblTables
     {
         Table1

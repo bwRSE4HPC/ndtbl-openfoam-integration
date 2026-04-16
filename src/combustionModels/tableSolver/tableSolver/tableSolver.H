@@ -6,7 +6,7 @@
 #include "fileName.H"
 #include "wordList.H"
 
-#include "ndtbl/io.hpp"
+#include "ndtbl/ndtbl.hpp"
 
 #include <array>
 #include <cstddef>
@@ -48,6 +48,12 @@ class tableSolver
 {
 private:
 
+    enum class interpolationMethod
+    {
+        linear,
+        cubic
+    };
+
     struct fieldBinding
     {
         std::size_t outputIndex;
@@ -63,10 +69,56 @@ private:
     };
 
     std::vector<tableGroup> groups_;
+    interpolationMethod interpolationMethod_;
+
+    static interpolationMethod readInterpolationMethod(const dictionary& coeffs)
+    {
+        word method("linear");
+        if (coeffs.found("interpolation"))
+        {
+            coeffs.lookup("interpolation") >> method;
+        }
+
+        if (method == "linear")
+        {
+            return interpolationMethod::linear;
+        }
+
+        if (method == "cubic")
+        {
+            return interpolationMethod::cubic;
+        }
+
+        FatalErrorInFunction
+            << "Unknown ndtbl interpolation method " << method
+            << ". Valid values are 'linear' and 'cubic'."
+            << exit(FatalError);
+
+        return interpolationMethod::linear;
+    }
+
+    static void validateCubicSupport(const tableGroup& group)
+    {
+        const std::array<ndtbl::Axis, Dim> axes = group.group.axes();
+        for (std::size_t axis = 0; axis < Dim; ++axis)
+        {
+            if (axes[axis].size() < 4)
+            {
+                FatalErrorInFunction
+                    << "Cubic interpolation requires at least 4 support points "
+                    << "on every axis; axis " << axis
+                    << " in " << group.filePath
+                    << " has " << axes[axis].size()
+                    << exit(FatalError);
+            }
+        }
+    }
 
 public:
 
     tableSolver(const dictionary& coeffs, const wordList& tableNames, const wordList& paramNames)
+    :
+        interpolationMethod_(readInterpolationMethod(coeffs))
     {
         if (paramNames.size() != static_cast<label>(Dim))
         {
@@ -123,6 +175,10 @@ public:
                     newGroup.filePath = filePath;
                     newGroup.group = ndtbl::read_group<Dim>(filePath);
                     newGroup.scratchValues.resize(newGroup.group.field_count(), 0.0);
+                    if (interpolationMethod_ == interpolationMethod::cubic)
+                    {
+                        validateCubicSupport(newGroup);
+                    }
                     groups_.push_back(newGroup);
                     groupIndex = groups_.size() - 1;
                     groupIndexByPath[filePath] = groupIndex;
@@ -181,7 +237,14 @@ public:
         for (std::size_t groupI = 0; groupI < groups_.size(); ++groupI)
         {
             const tableGroup& group = groups_[groupI];
-            group.group.evaluate_all_into(query, group.scratchValues.data());
+            if (interpolationMethod_ == interpolationMethod::linear)
+            {
+                group.group.evaluate_all_linear_into(query, group.scratchValues.data());
+            }
+            else
+            {
+                group.group.evaluate_all_cubic_into(query, group.scratchValues.data());
+            }
 
             for (std::size_t bindingI = 0; bindingI < group.bindings.size(); ++bindingI)
             {
