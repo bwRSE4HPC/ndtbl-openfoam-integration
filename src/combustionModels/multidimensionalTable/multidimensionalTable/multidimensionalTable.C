@@ -37,20 +37,8 @@ defineRunTimeSelectionTable(multidimensionalTable, dictionary);
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-multidimensionalTable::multidimensionalTable(const fvMesh& mesh, const word& tableName)
-:
-   IOdictionary
-   (
-      IOobject
-      (
-         tableName,
-         mesh.time().constant(),
-         mesh,
-         IOobject::READ_IF_PRESENT,
-         IOobject::NO_WRITE
-      )
-   ),
-   tableName_(tableName)
+multidimensionalTable::multidimensionalTable(const fvMesh&, const word& tableName)
+: tableName_(tableName)
 {}
 
 // * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //

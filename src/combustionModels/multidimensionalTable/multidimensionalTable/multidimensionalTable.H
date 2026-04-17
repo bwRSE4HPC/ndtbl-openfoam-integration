@@ -45,8 +45,6 @@ namespace Foam
 class fvMesh;
 
 class multidimensionalTable
-:
-    public IOdictionary
 {
 private:
 
