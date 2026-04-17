@@ -1,6 +1,6 @@
 #!/bin/bash
 # Load OpenFOAM run functions
-. $WM_PROJECT_DIR/bin/tools/RunFunctions
+. "$WM_PROJECT_DIR/bin/tools/RunFunctions"
 
 CASE_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 
@@ -9,6 +9,8 @@ TABLERESOLUTION="${TABLERESOLUTION:-51}"      # select table resolution (2, 21, 
 PARALLEL="${PARALLEL:-true}"                  # parallel mode?
 NPROCS="${NPROCS:-4}"                         # number of MPI ranks when parallel
 TABLES_DIR="${TABLES_DIR:-$CASE_DIR/tables/tables_${TABLERESOLUTION}}"
+HEAPTRACK="${HEAPTRACK:-false}"               # profile solver with heaptrack?
+HEAPTRACK_OUT="${HEAPTRACK_OUT:-}"            # optional explicit heaptrack output file
 
 if [[ "$TABLES_DIR" != /* ]]; then
     TABLES_DIR="$CASE_DIR/$TABLES_DIR"
@@ -21,6 +23,22 @@ for table_name in Table1_table Table2_table Table3_table Table4_table; do
     fi
 done
 
+runSolver()
+{
+    if [ "$HEAPTRACK" = true ]; then
+        echo "Running under heaptrack: $*"
+        if [ -n "$HEAPTRACK_OUT" ]; then
+            heaptrack -o "$HEAPTRACK_OUT" "$@"
+        else
+            heaptrack "$@"
+        fi
+    else
+        "$@"
+    fi
+}
+
+cd "$CASE_DIR" || exit 1
+
 # Link tables
 ln -sf "$TABLES_DIR/Table1_table" "$CASE_DIR/constant/Table1_table"
 ln -sf "$TABLES_DIR/Table2_table" "$CASE_DIR/constant/Table2_table"
@@ -28,12 +46,18 @@ ln -sf "$TABLES_DIR/Table3_table" "$CASE_DIR/constant/Table3_table"
 ln -sf "$TABLES_DIR/Table4_table" "$CASE_DIR/constant/Table4_table"
 
 # Copy initial conditions
+rm -rf 0
 cp -rf 0_orig 0
 
-# Create Mesh
+# Create mesh
 runApplication blockMesh
 
 if [ "$PARALLEL" = true ]; then
+    if [ "$HEAPTRACK" = true ]; then
+        echo "HEAPTRACK=true is currently only supported for serial runs." >&2
+        exit 1
+    fi
+
     sed -i "s/^numberOfSubdomains[[:space:]].*;/numberOfSubdomains $NPROCS;/" \
         system/decomposeParDict
 
@@ -50,5 +74,9 @@ if [ "$PARALLEL" = true ]; then
     rm -rf processor*
 else
     # Serial run
-    runApplication bwRSE4HPCFoam
+    if [ "$HEAPTRACK" = true ]; then
+        runSolver bwRSE4HPCFoam 2>&1 | tee log.heaptrack.bwRSE4HPCFoam
+    else
+        runApplication bwRSE4HPCFoam
+    fi
 fi
