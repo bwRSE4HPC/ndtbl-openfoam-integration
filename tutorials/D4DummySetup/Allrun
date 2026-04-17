@@ -1,6 +1,6 @@
 #!/bin/bash
 # Load OpenFOAM run functions
-. $WM_PROJECT_DIR/bin/tools/RunFunctions
+. "$WM_PROJECT_DIR/bin/tools/RunFunctions"
 
 CASE_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 
@@ -10,6 +10,8 @@ PARALLEL="${PARALLEL:-false}"                 # parallel mode?
 NPROCS="${NPROCS:-8}"                         # number of MPI ranks when parallel
 TABLE_SUFFIX="${TABLE_SUFFIX:-f}"             # ndtbl precision suffix (f or d)
 TABLE_FILE="${TABLE_FILE:-}"                  # explicit ndtbl file path, if set
+HEAPTRACK="${HEAPTRACK:-false}"               # profile solver with heaptrack?
+HEAPTRACK_OUT="${HEAPTRACK_OUT:-}"            # optional explicit heaptrack output file
 
 if [ -n "$TABLE_FILE" ]; then
     TABLE_SOURCE="$TABLE_FILE"
@@ -26,16 +28,39 @@ if [ ! -e "$TABLE_SOURCE" ]; then
     exit 1
 fi
 
+# Helper: run a command, optionally under heaptrack
+runSolver()
+{
+    if [ "$HEAPTRACK" = true ]; then
+        echo "Running under heaptrack: $*"
+        if [ -n "$HEAPTRACK_OUT" ]; then
+            heaptrack -o "$HEAPTRACK_OUT" "$@"
+        else
+            heaptrack "$@"
+        fi
+    else
+        "$@"
+    fi
+}
+
+cd "$CASE_DIR" || exit 1
+
 # Link grouped ndtbl binary
 ln -sf "$TABLE_SOURCE" "$CASE_DIR/constant/Tables.ndtbl"
 
 # Copy initial conditions
+rm -rf 0
 cp -rf 0_orig 0
 
-# Create Mesh
+# Create mesh
 runApplication blockMesh
 
 if [ "$PARALLEL" = true ]; then
+    if [ "$HEAPTRACK" = true ]; then
+        echo "HEAPTRACK=true is currently only supported for serial runs." >&2
+        exit 1
+    fi
+
     sed -i "s/^numberOfSubdomains[[:space:]].*;/numberOfSubdomains $NPROCS;/" \
         system/decomposeParDict
 
@@ -52,5 +77,9 @@ if [ "$PARALLEL" = true ]; then
     rm -rf processor*
 else
     # Serial run
-    runApplication bwRSE4HPCFoam
+    if [ "$HEAPTRACK" = true ]; then
+        runSolver bwRSE4HPCFoam 2>&1 | tee log.heaptrack.bwRSE4HPCFoam
+    else
+        runApplication bwRSE4HPCFoam
+    fi
 fi
