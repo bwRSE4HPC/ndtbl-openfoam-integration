@@ -144,6 +144,8 @@ Foam::combustionModels::D4DummyModel::D4DummyModel
 )
 :
     fgmModel(modelType, thermo, turb, trans, combustionProperties),
+    gammaParam_("gammaParam", dimensionSet(0, 2, -1, 0, 0), this->coeffs().subDict("fgmModelCoeffs").lookup<scalar>("gammaParam")),
+    rhoParam_("rhoParam", dimensionSet(1, -3, 0, 0, 0), this->coeffs().subDict("fgmModelCoeffs").lookup<scalar>("rhoParam")),
     Param1_
     (
         IOobject
@@ -256,6 +258,12 @@ Foam::combustionModels::D4DummyModel::~D4DummyModel()
 
 void Foam::combustionModels::D4DummyModel::correct()
 {
+    // Access to phi for transport equations
+    const surfaceScalarField& phi = mesh_.lookupObject<surfaceScalarField>("phi");
+
+    // Transport equation for tabulation parameters
+    #include "../ParamEqn.H"
+
     // Perform table lookup
     tableLookup();
 }

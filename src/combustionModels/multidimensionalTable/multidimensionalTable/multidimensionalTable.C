@@ -37,7 +37,7 @@ defineRunTimeSelectionTable(multidimensionalTable, dictionary);
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-multidimensionalTable::multidimensionalTable(const fvMesh&, const word& tableName)
+multidimensionalTable::multidimensionalTable(const fvMesh& mesh, const word& tableName)
 : tableName_(tableName)
 {}
 

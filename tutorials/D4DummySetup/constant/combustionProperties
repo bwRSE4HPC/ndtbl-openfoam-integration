@@ -17,6 +17,9 @@ FoamFile
 combustionModel  fgmModel;
 
 fgmModelCoeffs
-{}
+{
+    gammaParam   1e-5;
+    rhoParam     1;
+}
 
 // ************************************************************************* //

@@ -8,29 +8,17 @@ CASE_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 TABLERESOLUTION="${TABLERESOLUTION:-51}"      # select table resolution (2, 21, 31, 41, 46, 51)
 PARALLEL="${PARALLEL:-true}"                  # parallel mode?
 NPROCS="${NPROCS:-4}"                         # number of MPI ranks when parallel
-TABLES_DIR="${TABLES_DIR:-$CASE_DIR/tables/tables_${TABLERESOLUTION}}"
 HEAPTRACK="${HEAPTRACK:-false}"               # profile solver with heaptrack?
 HEAPTRACK_OUT="${HEAPTRACK_OUT:-}"            # optional explicit heaptrack output file
-
-if [[ "$TABLES_DIR" != /* ]]; then
-    TABLES_DIR="$CASE_DIR/$TABLES_DIR"
-fi
-
-for table_name in Table1_table Table2_table Table3_table Table4_table; do
-    if [ ! -e "$TABLES_DIR/$table_name" ]; then
-        echo "Missing baseline table file: $TABLES_DIR/$table_name" >&2
-        exit 1
-    fi
-done
 
 runSolver()
 {
     if [ "$HEAPTRACK" = true ]; then
         echo "Running under heaptrack: $*"
         if [ -n "$HEAPTRACK_OUT" ]; then
-            heaptrack -o "$HEAPTRACK_OUT" "$@"
+            heaptrack --record-only -o "$HEAPTRACK_OUT" "$@"
         else
-            heaptrack "$@"
+            heaptrack --record-only "$@"
         fi
     else
         "$@"
@@ -39,14 +27,14 @@ runSolver()
 
 cd "$CASE_DIR" || exit 1
 
-# Link tables
-ln -sf "$TABLES_DIR/Table1_table" "$CASE_DIR/constant/Table1_table"
-ln -sf "$TABLES_DIR/Table2_table" "$CASE_DIR/constant/Table2_table"
-ln -sf "$TABLES_DIR/Table3_table" "$CASE_DIR/constant/Table3_table"
-ln -sf "$TABLES_DIR/Table4_table" "$CASE_DIR/constant/Table4_table"
-
 # Copy initial conditions
 cp -rf 0_orig 0
+
+# Create Mesh
+runApplication blockMesh
+
+# Create Tables
+python3 ./python/tableGenerator.py $TABLERESOLUTION
 
 # Create mesh
 runApplication blockMesh
@@ -74,8 +62,11 @@ if [ "$PARALLEL" = true ]; then
 else
     # Serial run
     if [ "$HEAPTRACK" = true ]; then
-        runSolver bwRSE4HPCFoam 2>&1 | tee log.heaptrack.bwRSE4HPCFoam
+        runSolver bwRSE4HPCFoam 2>&1 | tee log.bwRSE4HPCFoam
     else
         runApplication bwRSE4HPCFoam
     fi
 fi
+
+# Create ParaView/OpenFOAM reader marker
+touch "$CASE_DIR/D4PassiveScalarTransport.foam"

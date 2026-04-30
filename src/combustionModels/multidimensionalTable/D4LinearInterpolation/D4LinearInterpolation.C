@@ -27,7 +27,6 @@ License
 
 #include "../D4LinearInterpolation/D4LinearInterpolation.H"
 #include "addToRunTimeSelectionTable.H"
-#include "IOdictionary.H"
 
 namespace Foam
 {
@@ -41,20 +40,21 @@ addToRunTimeSelectionTable(multidimensionalTable, D4LinearInterpolation, diction
 
 D4LinearInterpolation::D4LinearInterpolation(const fvMesh& mesh, const word& tableName)
 :
-    multidimensionalTable(mesh, tableName)
+    multidimensionalTable(mesh, tableName),
+    tableValues_()
 {
-   IOdictionary currentTable
-   (
-      IOobject
-      (
-         tableName,
-         mesh.time().constant(),
-         mesh,
-         IOobject::READ_IF_PRESENT,
-         IOobject::NO_WRITE
-      )
-   );
-   tableValues_ = currentTable.lookup<List<List<List<scalarList> > > >(tableName);
+    IOdictionary currentTable
+    (
+       IOobject
+       (
+          tableName,
+          mesh.time().constant(),
+          mesh,
+          IOobject::MUST_READ,
+          IOobject::NO_WRITE
+       )
+    );
+    tableValues_ = currentTable.lookup<List<List<List<scalarList> > > >(tableName);
 }
 
 // * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
