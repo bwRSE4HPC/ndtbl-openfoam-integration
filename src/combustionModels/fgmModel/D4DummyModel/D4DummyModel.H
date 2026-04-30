@@ -62,6 +62,12 @@ private:
         //- Disallow default bitwise assignment
         void operator=(const D4DummyModel&);
 
+        //- Diffusion coefficient
+        dimensionedScalar gammaParam_;
+
+        //- Density for parameter transport
+        dimensionedScalar rhoParam_;
+
         //- Look-up parameter
         volScalarField Param1_;
         volScalarField Param2_;

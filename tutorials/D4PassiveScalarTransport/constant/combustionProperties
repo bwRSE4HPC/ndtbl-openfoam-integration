@@ -18,7 +18,7 @@ combustionModel  fgmModel;
 
 fgmModelCoeffs
 {
-    gammaParam   1e-5;
+    gammaParam   1e-2;
     rhoParam     1;
 
     // Optional ndtbl interpolation method. Default is linear.
@@ -28,25 +28,25 @@ fgmModelCoeffs
     {
         Table1
         {
-            file  "constant/Tables.ndtbl";
+            file  "constant/tables.ndtbl";
             field Table1;
         }
 
         Table2
         {
-            file  "constant/Tables.ndtbl";
+            file  "constant/tables.ndtbl";
             field Table2;
         }
 
         Table3
         {
-            file  "constant/Tables.ndtbl";
+            file  "constant/tables.ndtbl";
             field Table3;
         }
 
         Table4
         {
-            file  "constant/Tables.ndtbl";
+            file  "constant/tables.ndtbl";
             field Table4;
         }
     }

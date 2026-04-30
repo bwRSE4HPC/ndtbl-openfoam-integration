@@ -60,18 +60,21 @@ int main(int argc, char *argv[])
 
     // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-    runTime++;
+    Info<< "\nStarting time loop\n" << endl;
 
-    dt = runTime.elapsedCpuTime();
-    Info<< nl << "Execution time before table lookup = " << runTime.elapsedCpuTime() << " s" << endl;
+    while (pimple.run(runTime))
+    {
+        runTime++;
 
-    reaction->correct();
+        Info<< "Time = " << runTime.timeName() << nl << endl;
 
-    dt -= runTime.elapsedCpuTime();
-    Info<< "Execution time after table lookup = " << runTime.elapsedCpuTime() << " s" << endl;
-    Info<< "Total table lookup time = " << -dt << " s" << nl << endl;
+        while (pimple.loop())
+        {
+            reaction->correct();
+        }
 
-    runTime.write();
+        runTime.write();
+    }
 
     // Evaluate total memory usage
     std::ifstream status("/proc/self/status");

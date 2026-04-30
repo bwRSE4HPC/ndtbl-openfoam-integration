@@ -1,15 +1,31 @@
+# Ignore everything but 'files' and 'options' directories in solver
 applications/solver/bwRSE4HPCFoam/Make/*/
 
+# Ignore everything but 'files' and 'options' directories in combustionModels
 src/combustionModels/Make/*/
 src/combustionModels/lnInclude/
 
+# Ignore tutorial results and log files
 tutorials/D4DummySetup/0/
 tutorials/D4DummySetup/1/
 tutorials/D4DummySetup/benchmark-results/
 tutorials/D4DummySetup/tables/
 tutorials/D4DummySetup/constant/polyMesh/
 tutorials/D4DummySetup/constant/*_table
+tutorials/D4PassiveScalarTransport/0/
+tutorials/D4PassiveScalarTransport/1/
+tutorials/D4PassiveScalarTransport/2/
+tutorials/D4PassiveScalarTransport/3/
+tutorials/D4PassiveScalarTransport/4/
+tutorials/D4PassiveScalarTransport/5/
+tutorials/D4PassiveScalarTransport/benchmark-results/
+tutorials/D4PassiveScalarTransport/tables/
+tutorials/D4PassiveScalarTransport/constant/polyMesh/
+tutorials/D4PassiveScalarTransport/constant/*_table
 tutorials/**/log.*
 
 # ndtbl binary files
 *.ndtbl
+
+# Ignore heaptrack output files
+*.zst

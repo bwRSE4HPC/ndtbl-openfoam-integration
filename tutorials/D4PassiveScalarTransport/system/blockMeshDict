@@ -1,0 +1,108 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+  =========                 |
+  \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
+   \\    /   O peration     | Website:  https://openfoam.org
+    \\  /    A nd           | Version:  9
+     \\/     M anipulation  |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      blockMeshDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+convertToMeters 1;
+
+vertices
+(
+    (0 0 0)       // 0: Bottom-left-back
+    (5 0 0)       // 1: Bottom-right-back
+    (5 1 0)       // 2: Top-right-back
+    (0 1 0)       // 3: Top-left-back
+    (0 0.5 0)     // 4: Mid-left-back (Inlet split point)
+    (5 0.5 0)     // 5: Mid-right-back
+
+    (0 0 0.1)     // 6: Bottom-left-front
+    (5 0 0.1)     // 7: Bottom-right-front
+    (5 1 0.1)     // 8: Top-right-front
+    (0 1 0.1)     // 9: Top-left-front
+    (0 0.5 0.1)   // 10: Mid-left-front
+    (5 0.5 0.1)   // 11: Mid-right-front
+);
+
+blocks
+(
+    // Lower block
+    hex (0 1 5 4 6 7 11 10) (100 20 1) simpleGrading (1 1 1)
+    // Upper block
+    hex (4 5 2 3 10 11 8 9) (100 20 1) simpleGrading (1 1 1)
+);
+
+edges
+(
+);
+
+boundary
+(
+    inlet_lower
+    {
+        type patch;
+        faces
+        (
+            (6 0 4 10)
+        );
+    }
+    inlet_upper
+    {
+        type patch;
+        faces
+        (
+            (10 4 3 9)
+        );
+    }
+    outlet
+    {
+        type patch;
+        faces
+        (
+            (1 7 11 5)
+            (5 11 8 2)
+        );
+    }
+    upperWall
+    {
+        type wall;
+        faces
+        (
+            (3 2 8 9)
+        );
+    }
+    lowerWall
+    {
+        type wall;
+        faces
+        (
+            (0 6 7 1)
+        );
+    }
+    frontAndBack
+    {
+        type empty;
+        faces
+        (
+            (0 4 5 1) // Lower block back
+            (4 3 2 5) // Upper block back
+            (6 7 11 10) // Lower block front
+            (10 11 8 9) // Upper block front
+        );
+    }
+);
+
+mergePatchPairs
+(
+);
+
+// ************************************************************************* //

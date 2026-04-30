@@ -95,7 +95,7 @@ done
 MPI_COUNTS=("${deduped_mpi[@]}")
 
 mkdir -p "$RESULTS_DIR"
-printf "resolution,table_suffix,mode,mpi_ranks,log_file,table_init_s,time_loop_s,total_memory_mb\n" > "$RESULTS_CSV"
+printf "resolution,table_suffix,mode,mpi_ranks,log_file,reaction_init_s,lookup_s,end_s,total_memory_mb\n" > "$RESULTS_CSV"
 
 extract_metric() {
     local log_file="$1"
@@ -163,27 +163,34 @@ run_case() {
 
     check_log_for_failure "$log_file"
 
-    local table_init_s
-    local time_loop_s
+    local reaction_init_s
+    local lookup_s
+    local end_s
     local total_memory_mb
 
-    table_init_s="$(extract_metric "$log_file" "Total table loading/initialization time")"
-    time_loop_s="$(extract_metric "$log_file" "Total time loop runtime")"
+    reaction_init_s="$(extract_metric "$log_file" "Total reaction initialization time")"
+    lookup_s="$(extract_metric "$log_file" "Total table lookup time")"
+    end_s="$(extract_metric "$log_file" "Execution time end of simulation")"
     total_memory_mb="$(extract_memory "$log_file")"
 
-    if [ -z "$table_init_s" ] || [ -z "$time_loop_s" ] || [ -z "$total_memory_mb" ]; then
+    if [ -z "$lookup_s" ]; then
+        lookup_s="NA"
+    fi
+
+    if [ -z "$reaction_init_s" ] || [ -z "$end_s" ] || [ -z "$total_memory_mb" ]; then
         echo "Missing expected benchmark metrics in log: $log_file" >&2
         exit 1
     fi
 
-    printf "%s,%s,%s,%s,%s,%s,%s,%s\n" \
+    printf "%s,%s,%s,%s,%s,%s,%s,%s,%s\n" \
         "$resolution" \
         "$TABLE_SUFFIX" \
         "$mode" \
         "$mpi_ranks" \
         "$log_file" \
-        "$table_init_s" \
-        "$time_loop_s" \
+        "$reaction_init_s" \
+        "$lookup_s" \
+        "$end_s" \
         "$total_memory_mb" >> "$RESULTS_CSV"
 }
 
