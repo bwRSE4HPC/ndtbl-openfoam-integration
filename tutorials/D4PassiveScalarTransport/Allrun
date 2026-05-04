@@ -8,9 +8,16 @@ CASE_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 TABLERESOLUTION="${TABLERESOLUTION:-51}"      # select table resolution (2, 21, 31, 41, 46, 51)
 PARALLEL="${PARALLEL:-true}"                  # parallel mode?
 NPROCS="${NPROCS:-4}"                         # number of MPI ranks when parallel
-TABLE_SUFFIX="${TABLE_SUFFIX:-f}"             # ndtbl precision suffix (f or d)
 HEAPTRACK="${HEAPTRACK:-false}"               # profile solver with heaptrack?
 HEAPTRACK_OUT="${HEAPTRACK_OUT:-}"            # optional explicit heaptrack output file
+PERF="${PERF:-false}"                         # profile solver with perf stat?
+PERF_EVENTS="${PERF_EVENTS:-page-faults,minor-faults,major-faults}"
+DROP_CACHES="${DROP_CACHES:-true}"            # drop filesystem caches before solver?
+
+if [ "$HEAPTRACK" = true ] && [ "$PERF" = true ]; then
+    echo "HEAPTRACK=true and PERF=true are mutually exclusive." >&2
+    exit 1
+fi
 
 runSolver()
 {
@@ -21,6 +28,9 @@ runSolver()
         else
             heaptrack --record-only "$@"
         fi
+    elif [ "$PERF" = true ]; then
+        echo "Running under perf stat: $*"
+        perf stat -e "$PERF_EVENTS" "$@"
     else
         "$@"
     fi
@@ -35,7 +45,12 @@ cp -rf 0_orig 0
 runApplication blockMesh
 
 # Create Tables
-python3 ./python/tableGenerator.py "$TABLERESOLUTION" "$TABLE_SUFFIX"
+python3 ./python/tableGenerator.py $TABLERESOLUTION
+
+if [ "$DROP_CACHES" = true ]; then
+    sync
+    echo 3 | sudo tee /proc/sys/vm/drop_caches >/dev/null
+fi
 
 # Create mesh
 runApplication blockMesh
@@ -43,6 +58,10 @@ runApplication blockMesh
 if [ "$PARALLEL" = true ]; then
     if [ "$HEAPTRACK" = true ]; then
         echo "HEAPTRACK=true is currently only supported for serial runs." >&2
+        exit 1
+    fi
+    if [ "$PERF" = true ]; then
+        echo "PERF=true is currently only supported for serial runs." >&2
         exit 1
     fi
 
@@ -62,11 +81,7 @@ if [ "$PARALLEL" = true ]; then
     rm -rf processor*
 else
     # Serial run
-    if [ "$HEAPTRACK" = true ]; then
-        runSolver bwRSE4HPCFoam 2>&1 | tee log.bwRSE4HPCFoam
-    else
-        runApplication bwRSE4HPCFoam
-    fi
+    runSolver bwRSE4HPCFoam 2>&1 | tee log.bwRSE4HPCFoam
 fi
 
 # Create ParaView/OpenFOAM reader marker
