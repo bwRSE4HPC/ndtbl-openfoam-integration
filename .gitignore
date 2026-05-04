@@ -29,3 +29,6 @@ tutorials/**/log.*
 
 # Ignore heaptrack output files
 *.zst
+
+# OpenFoam case files
+*.foam
