@@ -6,6 +6,7 @@ CASE_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 
 # User settings, overridable through environment variables
 TABLERESOLUTION="${TABLERESOLUTION:-51}"      # select table resolution (2, 21, 31, 41, 46, 51)
+TABLE_SUFFIX="${TABLE_SUFFIX:-f}"             # ndtbl precision suffix (f or d)
 PARALLEL="${PARALLEL:-true}"                  # parallel mode?
 NPROCS="${NPROCS:-4}"                         # number of MPI ranks when parallel
 HEAPTRACK="${HEAPTRACK:-false}"               # profile solver with heaptrack?
@@ -45,7 +46,7 @@ cp -rf 0_orig 0
 runApplication blockMesh
 
 # Create Tables
-python3 ./python/tableGenerator.py $TABLERESOLUTION
+python3 ./python/tableGenerator.py $TABLERESOLUTION $TABLE_SUFFIX
 
 if [ "$DROP_CACHES" = true ]; then
     sync
