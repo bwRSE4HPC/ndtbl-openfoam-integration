@@ -8,6 +8,7 @@ CASE_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 TABLERESOLUTION="${TABLERESOLUTION:-51}"      # select table resolution (2, 21, 31, 41, 46, 51)
 PARALLEL="${PARALLEL:-true}"                  # parallel mode?
 NPROCS="${NPROCS:-4}"                         # number of MPI ranks when parallel
+TABLE_SUFFIX="${TABLE_SUFFIX:-f}"             # ndtbl precision suffix (f or d)
 HEAPTRACK="${HEAPTRACK:-false}"               # profile solver with heaptrack?
 HEAPTRACK_OUT="${HEAPTRACK_OUT:-}"            # optional explicit heaptrack output file
 
@@ -34,7 +35,7 @@ cp -rf 0_orig 0
 runApplication blockMesh
 
 # Create Tables
-python3 ./python/tableGenerator.py $TABLERESOLUTION
+python3 ./python/tableGenerator.py "$TABLERESOLUTION" "$TABLE_SUFFIX"
 
 # Create mesh
 runApplication blockMesh

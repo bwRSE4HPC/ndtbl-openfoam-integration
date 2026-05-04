@@ -18,8 +18,8 @@ Options:
   --resolution N     Add one table resolution to sweep. Repeatable.
   --mpi N            Add one MPI process count. Use 0 or 'none' for serial.
                      Repeatable. Default sweep: none, 2, 4, 8.
-  --table-suffix S   ndtbl filename suffix to use when TABLE_FILE is not set
-                     via Allrun. Default: f
+  --table-suffix S   ndtbl precision suffix passed to tableGenerator.py.
+                     Use f for float32 or d for float64. Default: f
   --results-dir DIR  Directory for CSV results. Default: benchmark-results
   --help             Show this help
 
@@ -95,7 +95,7 @@ done
 MPI_COUNTS=("${deduped_mpi[@]}")
 
 mkdir -p "$RESULTS_DIR"
-printf "resolution,table_suffix,mode,mpi_ranks,log_file,reaction_init_s,lookup_s,end_s,total_memory_mb\n" > "$RESULTS_CSV"
+printf "resolution,table_suffix,mode,mpi_ranks,log_file,table_init_s,time_loop_s,total_memory_mb\n" > "$RESULTS_CSV"
 
 extract_metric() {
     local log_file="$1"
@@ -163,34 +163,27 @@ run_case() {
 
     check_log_for_failure "$log_file"
 
-    local reaction_init_s
-    local lookup_s
-    local end_s
+    local table_init_s
+    local time_loop_s
     local total_memory_mb
 
-    reaction_init_s="$(extract_metric "$log_file" "Total reaction initialization time")"
-    lookup_s="$(extract_metric "$log_file" "Total table lookup time")"
-    end_s="$(extract_metric "$log_file" "Execution time end of simulation")"
+    table_init_s="$(extract_metric "$log_file" "Total table loading/initialization time")"
+    time_loop_s="$(extract_metric "$log_file" "Total time loop runtime")"
     total_memory_mb="$(extract_memory "$log_file")"
 
-    if [ -z "$lookup_s" ]; then
-        lookup_s="NA"
-    fi
-
-    if [ -z "$reaction_init_s" ] || [ -z "$end_s" ] || [ -z "$total_memory_mb" ]; then
+    if [ -z "$table_init_s" ] || [ -z "$time_loop_s" ] || [ -z "$total_memory_mb" ]; then
         echo "Missing expected benchmark metrics in log: $log_file" >&2
         exit 1
     fi
 
-    printf "%s,%s,%s,%s,%s,%s,%s,%s,%s\n" \
+    printf "%s,%s,%s,%s,%s,%s,%s,%s\n" \
         "$resolution" \
         "$TABLE_SUFFIX" \
         "$mode" \
         "$mpi_ranks" \
         "$log_file" \
-        "$reaction_init_s" \
-        "$lookup_s" \
-        "$end_s" \
+        "$table_init_s" \
+        "$time_loop_s" \
         "$total_memory_mb" >> "$RESULTS_CSV"
 }
 

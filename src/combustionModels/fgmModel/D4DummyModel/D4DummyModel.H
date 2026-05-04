@@ -80,6 +80,9 @@ private:
         volScalarField Table3_;
         volScalarField Table4_;
 
+        //- CPU time before table loading and initialization
+        scalar tableInitializationStartCpuTime_;
+
         //- Tables
         tableSolver<4, 4> solver_;
 

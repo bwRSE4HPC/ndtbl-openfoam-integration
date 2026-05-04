@@ -9,8 +9,19 @@ import sys
 # --- USER INPUT ---
 # Anzahl der Stützstellen
 RESOLUTION = 21
+TABLE_SUFFIX = "f"
 
-def generate_table(res):
+
+def dtype_from_suffix(suffix):
+    if suffix in ("f", "float", "float32"):
+        return np.float32
+    if suffix in ("d", "double", "float64"):
+        return np.float64
+
+    raise ValueError("table suffix must be one of: f, d, float32, float64")
+
+
+def generate_table(res, dtype):
     axis0 = ndtbl.UniformAxis(min=0.0, max=1.0, size=res)
     axis1 = ndtbl.UniformAxis(min=0.0, max=1.0, size=res)
     axis2 = ndtbl.UniformAxis(min=0.0, max=1.0, size=res)
@@ -34,7 +45,7 @@ def generate_table(res):
     value2 = 0.25 * (np.pow(grid0, 2) + np.pow(grid1, 2) + np.pow(grid2, 2) + np.pow(grid3, 2))
     value3 = 0.25 * (np.pow(grid0, 3) + np.pow(grid1, 3) + np.pow(grid2, 3) + np.pow(grid3, 3))
 
-    values = np.stack((value0, value1, value2, value3), axis=-1).astype(np.float64)
+    values = np.stack((value0, value1, value2, value3), axis=-1).astype(dtype)
 
     group = ndtbl.FieldGroup(
         axes=(axis0, axis1, axis2, axis3),
@@ -48,7 +59,12 @@ def generate_table(res):
 
 if __name__ == "__main__":
     res = int(sys.argv[1]) if len(sys.argv) > 1 else RESOLUTION
+    suffix = sys.argv[2] if len(sys.argv) > 2 else TABLE_SUFFIX
+    dtype = dtype_from_suffix(suffix)
+
     print("\nStart generating Tables")
     print("\nResolution: ", res)
-    generate_table(res)
+    print("\nTable suffix: ", suffix)
+    print("\nValue dtype: ", np.dtype(dtype))
+    generate_table(res, dtype)
     print("\nSuccess!")
