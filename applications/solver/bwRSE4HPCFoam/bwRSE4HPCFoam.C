@@ -62,6 +62,8 @@ int main(int argc, char *argv[])
 
     Info<< "\nStarting time loop\n" << endl;
 
+    const scalar timeLoopStartCpuTime = runTime.elapsedCpuTime();
+
     while (pimple.run(runTime))
     {
         runTime++;
@@ -75,6 +77,10 @@ int main(int argc, char *argv[])
 
         runTime.write();
     }
+
+    Info<< "Total time loop runtime = "
+        << runTime.elapsedCpuTime() - timeLoopStartCpuTime
+        << " s" << endl;
 
     // Evaluate total memory usage
     std::ifstream status("/proc/self/status");

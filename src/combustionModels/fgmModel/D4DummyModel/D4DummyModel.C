@@ -246,8 +246,13 @@ Foam::combustionModels::D4DummyModel::D4DummyModel
         this->mesh(),
         dimensionedScalar(dimless, 0)
     ),
+    tableInitializationStartCpuTime_(this->mesh().time().elapsedCpuTime()),
     solver_(tableSolver(this->mesh(), tables(), parameters()))
-{}
+{
+    Info<< "Total table loading/initialization time = "
+        << this->mesh().time().elapsedCpuTime() - tableInitializationStartCpuTime_
+        << " s" << endl;
+}
 
 // * * * * * * * * * * * * * * * * Destructors * * * * * * * * * * * * * * * //
 
