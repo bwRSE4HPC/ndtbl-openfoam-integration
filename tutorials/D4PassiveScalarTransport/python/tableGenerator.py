@@ -55,7 +55,7 @@ def generate_table(res, dtype):
 
     output_path = Path("constant/tables.ndtbl")
 
-    ndtbl.write_group(output_path, group)
+    ndtbl.write_group(output_path, group, max_size_mib=9000)
 
 if __name__ == "__main__":
     res = int(sys.argv[1]) if len(sys.argv) > 1 else RESOLUTION
