@@ -63,13 +63,18 @@ private:
     struct tableGroup
     {
         std::string filePath;
-        ndtbl::RuntimeFieldGroup<Dim> group;
+        ndtbl::RuntimeFieldGroup<Dim, scalar> group;
         std::vector<fieldBinding> bindings;
-        mutable std::vector<double> scratchValues;
     };
 
     std::vector<tableGroup> groups_;
     interpolationMethod interpolationMethod_;
+
+    static std::vector<scalar>& threadScratchValues()
+    {
+        static thread_local std::vector<scalar> scratchValues;
+        return scratchValues;
+    }
 
     static interpolationMethod readInterpolationMethod(const dictionary& coeffs)
     {
@@ -173,8 +178,7 @@ public:
                 {
                     tableGroup newGroup;
                     newGroup.filePath = filePath;
-                    newGroup.group = ndtbl::read_group<Dim>(filePath);
-                    newGroup.scratchValues.resize(newGroup.group.field_count(), 0.0);
+                    newGroup.group = ndtbl::read_group<Dim, scalar>(filePath);
                     if (interpolationMethod_ == interpolationMethod::cubic)
                     {
                         validateCubicSupport(newGroup);
@@ -237,20 +241,26 @@ public:
         for (std::size_t groupI = 0; groupI < groups_.size(); ++groupI)
         {
             const tableGroup& group = groups_[groupI];
+            std::vector<scalar>& scratchValues = threadScratchValues();
+            const std::size_t fieldCount = group.group.field_count();
+            if (scratchValues.size() < fieldCount)
+            {
+                scratchValues.resize(fieldCount);
+            }
+
             if (interpolationMethod_ == interpolationMethod::linear)
             {
-                group.group.evaluate_all_linear_into(query, group.scratchValues.data());
+                group.group.evaluate_all_linear_into(query, scratchValues.data());
             }
             else
             {
-                group.group.evaluate_all_cubic_into(query, group.scratchValues.data());
+                group.group.evaluate_all_cubic_into(query, scratchValues.data());
             }
 
             for (std::size_t bindingI = 0; bindingI < group.bindings.size(); ++bindingI)
             {
                 const fieldBinding& binding = group.bindings[bindingI];
-                values[binding.outputIndex] =
-                    static_cast<scalar>(group.scratchValues[binding.fieldIndex]);
+                values[binding.outputIndex] = scratchValues[binding.fieldIndex];
             }
         }
     }
