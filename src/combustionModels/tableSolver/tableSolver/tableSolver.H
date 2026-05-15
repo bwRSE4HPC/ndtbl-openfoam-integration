@@ -23,6 +23,7 @@ namespace combustionModels
 namespace detail
 {
 
+/// Read a dictionary entry as an OpenFOAM fileName and return its path string.
 inline std::string readPathEntry(const dictionary& dict, const word& key)
 {
     fileName pathValue;
@@ -30,6 +31,7 @@ inline std::string readPathEntry(const dictionary& dict, const word& key)
     return std::string(pathValue.c_str());
 }
 
+/// Read the ndtbl field name for an output, falling back to the output name.
 inline std::string readFieldEntry(const dictionary& dict, const word& defaultName)
 {
     word fieldName(defaultName);
@@ -43,39 +45,63 @@ inline std::string readFieldEntry(const dictionary& dict, const word& defaultNam
 
 } // End namespace detail
 
+/// Loads ndtbl table files and evaluates configured output fields.
+///
+/// The solver is parameterized by the number of lookup coordinates and output
+/// values. Its constructor reads the model coefficients, loads each unique
+/// ndtbl path once per solver instance, and binds the requested output table
+/// names to fields in the loaded table groups. A lookup evaluates every loaded
+/// group at a query point and copies the bound field values into the
+/// caller-provided output array.
 template<std::size_t Dim, std::size_t NOut>
 class tableSolver
 {
 private:
 
+    /// Interpolation schemes supported by the ndtbl runtime evaluator.
     enum class interpolationMethod
     {
         linear,
         cubic
     };
 
+    /// Mapping from one requested output slot to one field in an ndtbl group.
     struct fieldBinding
     {
+        /// Index in the caller-visible output value array.
         std::size_t outputIndex;
+
+        /// Index of the corresponding field inside the ndtbl RuntimeFieldGroup.
         std::size_t fieldIndex;
     };
 
+    /// One loaded ndtbl path and all output fields that are read from it.
     struct tableGroup
     {
+        /// Path used to load the table group.
         std::string filePath;
+
+        /// Runtime representation of the ndtbl axes and field data.
         ndtbl::RuntimeFieldGroup<Dim, scalar> group;
+
+        /// Output-to-field bindings served by this loaded table group.
         std::vector<fieldBinding> bindings;
     };
 
+    /// Unique ndtbl table groups needed by the configured output file paths.
     std::vector<tableGroup> groups_;
+
+    /// Interpolation scheme used for all table evaluations.
     interpolationMethod interpolationMethod_;
 
+    /// Return reusable per-thread storage for full-field interpolation results.
     static std::vector<scalar>& threadScratchValues()
     {
         static thread_local std::vector<scalar> scratchValues;
         return scratchValues;
     }
 
+    /// Parse the interpolation scheme from coefficients and validate it.
     static interpolationMethod readInterpolationMethod(const dictionary& coeffs)
     {
         word method("linear");
@@ -102,6 +128,7 @@ private:
         return interpolationMethod::linear;
     }
 
+    /// Ensure that every axis has enough support points for cubic lookup.
     static void validateCubicSupport(const tableGroup& group)
     {
         const std::array<ndtbl::Axis, Dim> axes = group.group.axes();
@@ -121,6 +148,14 @@ private:
 
 public:
 
+    /// Construct a solver from model coefficients and requested table outputs.
+    ///
+    /// The constructor verifies that the provided parameter and output lists
+    /// match the template dimensions, reads the `ndtblTables` sub-dictionary,
+    /// loads each distinct configured file path once per solver instance, and
+    /// records which field in each loaded file supplies each output.
+    /// Configuration, load, or binding failures are reported through OpenFOAM
+    /// FatalError diagnostics.
     tableSolver(const dictionary& coeffs, const wordList& tableNames, const wordList& paramNames)
     :
         interpolationMethod_(readInterpolationMethod(coeffs))
@@ -178,7 +213,7 @@ public:
                 {
                     tableGroup newGroup;
                     newGroup.filePath = filePath;
-                    newGroup.group = ndtbl::read_group<Dim, scalar>(filePath);
+                    newGroup.group = ndtbl::read_runtime_field_group<Dim, scalar>(filePath);
                     if (interpolationMethod_ == interpolationMethod::cubic)
                     {
                         validateCubicSupport(newGroup);
@@ -230,6 +265,11 @@ public:
         }
     }
 
+    /// Evaluate the configured tables at a query point.
+    ///
+    /// The input array supplies the `Dim` lookup coordinates. The method
+    /// evaluates each loaded ndtbl group with the configured interpolation
+    /// scheme and writes the `NOut` bound field values into `values`.
     void lookup(const std::array<scalar, Dim>& x, std::array<scalar, NOut>& values) const
     {
         std::array<double, Dim> query;
