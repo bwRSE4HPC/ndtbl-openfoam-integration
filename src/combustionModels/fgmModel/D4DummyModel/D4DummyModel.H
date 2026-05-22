@@ -84,7 +84,7 @@ private:
         scalar tableInitializationStartCpuTime_;
 
         //- Tables
-        tableSolver<4, 4> solver_;
+        tableSolver<4> solver_;
 
     // Member Functions
 
