@@ -53,10 +53,12 @@ inline std::string readFieldEntry(const dictionary& dict, const word& defaultNam
 /// names to fields in the loaded table groups. A lookup evaluates every loaded
 /// group at a query point and copies the bound field values into the
 /// caller-provided output array.
-template<std::size_t Dim, std::size_t NOut>
+template<std::size_t Dim>
 class tableSolver
 {
 private:
+
+    const std::size_t NOut;
 
     /// Interpolation schemes supported by the ndtbl runtime evaluator.
     enum class interpolationMethod
@@ -158,6 +160,7 @@ public:
     /// FatalError diagnostics.
     tableSolver(const dictionary& coeffs, const wordList& tableNames, const wordList& paramNames)
     :
+        NOut(tableNames.size()),
         interpolationMethod_(readInterpolationMethod(coeffs))
     {
         if (paramNames.size() != static_cast<label>(Dim))
@@ -185,7 +188,7 @@ public:
 
         const dictionary& tableConfigs = coeffs.subDict("ndtblTables");
         std::map<std::string, std::size_t> groupIndexByPath;
-        std::array<bool, NOut> outputBound = {};
+        std::vector<bool> outputBound(NOut, false);
 
         forAll(tableNames, outputI)
         {
@@ -270,7 +273,7 @@ public:
     /// The input array supplies the `Dim` lookup coordinates. The method
     /// evaluates each loaded ndtbl group with the configured interpolation
     /// scheme and writes the `NOut` bound field values into `values`.
-    void lookup(const std::array<scalar, Dim>& x, std::array<scalar, NOut>& values) const
+    void lookup(const std::array<scalar, Dim>& x, std::vector<scalar>& values) const
     {
         std::array<double, Dim> query;
         for (std::size_t axis = 0; axis < Dim; ++axis)

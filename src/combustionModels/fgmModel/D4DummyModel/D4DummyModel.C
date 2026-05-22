@@ -54,7 +54,7 @@ void Foam::combustionModels::D4DummyModel::tableLookup()
 
     // Local (in cell) look-up parameters
     std::array<scalar, 4> x = { scalar(0), scalar(0), scalar(0), scalar(0) };
-    std::array<scalar, 4> values = { scalar(0), scalar(0), scalar(0), scalar(0) };
+    std::vector<scalar> values = { scalar(0), scalar(0), scalar(0), scalar(0) };
 
     // For internal cells
     forAll(Param1Cells, cellI)
@@ -240,7 +240,7 @@ Foam::combustionModels::D4DummyModel::D4DummyModel
         dimensionedScalar(dimless, 0)
     ),
     tableInitializationStartCpuTime_(this->mesh().time().elapsedCpuTime()),
-    solver_(tableSolver<4, 4>(this->coeffs(), tables(), parameters()))
+    solver_(tableSolver<4>(this->coeffs(), tables(), parameters()))
 {
     Info<< "Total table loading/initialization time = "
         << this->mesh().time().elapsedCpuTime() - tableInitializationStartCpuTime_
