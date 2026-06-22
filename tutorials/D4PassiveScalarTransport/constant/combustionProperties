@@ -21,6 +21,8 @@ D4DummyModelCoeffs
     gammaParam   1e-2;
     rhoParam     1;
 
+    ndtblDiagnostics true;
+
     // Optional ndtbl interpolation method. Default is linear.
     //interpolation cubic;
 

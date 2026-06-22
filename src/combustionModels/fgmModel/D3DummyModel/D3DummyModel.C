@@ -205,8 +205,14 @@ Foam::combustionModels::D3DummyModel::D3DummyModel
         dimensionedScalar(dimless, 0)
     ),
     tableInitializationStartCpuTime_(this->mesh().time().elapsedCpuTime()),
+    ndtblDiagnostics_(false),
     solver_(tableSolver<3>(this->coeffs(), tables(), parameters()))
 {
+    if (this->coeffs().found("ndtblDiagnostics"))
+    {
+        this->coeffs().lookup("ndtblDiagnostics") >> ndtblDiagnostics_;
+    }
+
     Info<< "Total table loading/initialization time = "
         << this->mesh().time().elapsedCpuTime() - tableInitializationStartCpuTime_
         << " s" << endl;
@@ -240,6 +246,19 @@ void Foam::combustionModels::D3DummyModel::correct()
 
     // Perform table lookup
     tableLookup();
+}
+
+void Foam::combustionModels::D3DummyModel::reportTableResidency
+(
+    const word& label
+) const
+{
+    if (!ndtblDiagnostics_)
+    {
+        return;
+    }
+
+    solver_.reportResidency(label);
 }
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

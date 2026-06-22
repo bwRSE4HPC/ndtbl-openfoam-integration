@@ -83,6 +83,9 @@ private:
         //- CPU time before table loading and initialization
         scalar tableInitializationStartCpuTime_;
 
+        //- Enable ndtbl residency reporting
+        bool ndtblDiagnostics_;
+
         //- Tables
         tableSolver<4> solver_;
 
@@ -121,6 +124,9 @@ public:
 
         //- Correct combustion rate
         virtual void correct();
+
+        //- Report ndtbl residency diagnostics
+        virtual void reportTableResidency(const word& label) const;
 };
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

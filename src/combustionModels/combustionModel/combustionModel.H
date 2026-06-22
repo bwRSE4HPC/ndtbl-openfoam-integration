@@ -173,6 +173,9 @@ public:
         //- Correct combustion
         virtual void correct() = 0;
 
+        //- Report table residency diagnostics if supported by the model
+        virtual void reportTableResidency(const word& label) const {}
+
         //- Update properties from given dictionary
         virtual bool read();
 

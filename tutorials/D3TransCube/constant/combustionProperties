@@ -22,6 +22,8 @@ D3DummyModelCoeffs
     gammaParam   0;
     rhoParam     1;
 
+    ndtblDiagnostics true;
+
     // Optional ndtbl interpolation method. Default is linear.
     //interpolation cubic;
 

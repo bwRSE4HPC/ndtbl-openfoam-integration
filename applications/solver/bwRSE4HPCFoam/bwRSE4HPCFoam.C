@@ -58,6 +58,8 @@ int main(int argc, char *argv[])
     #include "createFields.H"
     #include "createRhoUfIfPresent.H"
 
+    reaction->reportTableResidency("afterTableLoad");
+
     // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
     Info<< "\nStarting time loop\n" << endl;
@@ -75,12 +77,19 @@ int main(int argc, char *argv[])
             reaction->correct();
         }
 
+        const bool outputTime = runTime.outputTime();
         runTime.write();
+        if (outputTime)
+        {
+            reaction->reportTableResidency("time");
+        }
     }
 
     Info<< "Total time loop runtime = "
         << runTime.elapsedCpuTime() - timeLoopStartCpuTime
         << " s" << endl;
+
+    reaction->reportTableResidency("endOfSimulation");
 
     // Evaluate total memory usage
     std::ifstream status("/proc/self/status");

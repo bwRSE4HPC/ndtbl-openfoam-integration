@@ -4,6 +4,7 @@
 #include "dictionary.H"
 #include "error.H"
 #include "fileName.H"
+#include "PstreamReduceOps.H"
 #include "wordList.H"
 
 #include "ndtbl/ndtbl.hpp"
@@ -304,6 +305,83 @@ public:
             {
                 const fieldBinding& binding = group.bindings[bindingI];
                 values[binding.outputIndex] = scratchValues[binding.fieldIndex];
+            }
+        }
+    }
+
+    /// Report mmap payload residency for every loaded table group.
+    void reportResidency(const word& label) const
+    {
+        for (std::size_t groupI = 0; groupI < groups_.size(); ++groupI)
+        {
+            const tableGroup& group = groups_[groupI];
+            ndtbl::residency_info info = { false, 0, 0, 0, 0, 0.0 };
+
+            try
+            {
+                info = group.group.payload_residency();
+            }
+            catch (const std::exception& error)
+            {
+                WarningInFunction
+                    << "Failed to query ndtbl residency for " << group.filePath
+                    << ": " << error.what() << endl;
+            }
+
+            scalar rankCount = 1;
+            scalar availableCount = info.available ? 1 : 0;
+            scalar residentFractionSum = info.available
+                ? static_cast<scalar>(info.resident_fraction)
+                : 0;
+            scalar residentFractionMin = info.available
+                ? static_cast<scalar>(info.resident_fraction)
+                : 1;
+            scalar residentFractionMax = info.available
+                ? static_cast<scalar>(info.resident_fraction)
+                : 0;
+            scalar residentBytes = info.available
+                ? static_cast<scalar>(info.resident_bytes)
+                : 0;
+            scalar residentBytesMin = residentBytes;
+            scalar residentBytesMax = residentBytes;
+            scalar totalBytesMax = info.available
+                ? static_cast<scalar>(info.total_pages) * static_cast<scalar>(info.page_size)
+                : 0;
+
+            Foam::reduce(rankCount, Foam::sumOp<scalar>());
+            Foam::reduce(availableCount, Foam::sumOp<scalar>());
+            Foam::reduce(residentFractionSum, Foam::sumOp<scalar>());
+            Foam::reduce(residentFractionMin, Foam::minOp<scalar>());
+            Foam::reduce(residentFractionMax, Foam::maxOp<scalar>());
+            Foam::reduce(residentBytes, Foam::sumOp<scalar>());
+            Foam::reduce(residentBytesMin, Foam::minOp<scalar>());
+            Foam::reduce(residentBytesMax, Foam::maxOp<scalar>());
+            Foam::reduce(totalBytesMax, Foam::maxOp<scalar>());
+
+            if (Pstream::master())
+            {
+                Info<< "ndtbl residency [" << label << "] group " << groupI
+                    << " file " << group.filePath << ": ";
+
+                if (availableCount != rankCount)
+                {
+                    Info<< "available on " << availableCount << " / " << rankCount
+                        << " ranks; enable ndtbl mmap diagnostics and mmap-backed reads"
+                        << endl;
+                    continue;
+                }
+
+                const scalar bytesToMiB = 1.0/(1024.0*1024.0);
+                Info<< "resident fraction min/avg/max = "
+                    << residentFractionMin << " / "
+                    << residentFractionSum/rankCount << " / "
+                    << residentFractionMax
+                    << ", resident MiB min/avg/max = "
+                    << residentBytesMin*bytesToMiB << " / "
+                    << (residentBytes/rankCount)*bytesToMiB << " / "
+                    << residentBytesMax*bytesToMiB
+                    << ", mapped MiB max = " << totalBytesMax*bytesToMiB
+                    << endl;
             }
         }
     }
