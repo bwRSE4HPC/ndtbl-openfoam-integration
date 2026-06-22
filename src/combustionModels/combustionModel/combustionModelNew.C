@@ -81,10 +81,20 @@ Foam::autoPtr<Foam::combustionModel> Foam::combustionModel::New
 
     const word coeffsModelType(modelType);
 
-    // Select fgmModel
+    // "fgmModel" is a deprecated alias kept for backwards compatibility with
+    // existing dictionaries; it defaults to D4DummyModel. To select a
+    // specific fgmModel implementation (e.g. D3DummyModel), request it by
+    // its concrete type name directly via requestedModelType.
     if (modelType == "fgmModel")
     {
         modelType = "D4DummyModel";
+
+        WarningInFunction
+            << "'fgmModel' is a deprecated alias and now selects "
+            << modelType << ". To select a specific fgmModel "
+            << "implementation, request it by name, e.g. D3DummyModel."
+            << endl;
+
         Info<< "Selecting fgm model type " << modelType << endl;
     }
 

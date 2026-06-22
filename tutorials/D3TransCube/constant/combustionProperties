@@ -14,11 +14,12 @@ FoamFile
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-combustionModel  D4DummyModel;
+combustionModel  D3DummyModel;
 
-D4DummyModelCoeffs
+D3DummyModelCoeffs
 {
-    gammaParam   1e-2;
+    // Diffusion off
+    gammaParam   0;
     rhoParam     1;
 
     // Optional ndtbl interpolation method. Default is linear.
@@ -28,26 +29,20 @@ D4DummyModelCoeffs
     {
         Table1
         {
-            file  "constant/tables.ndtbl";
+            file  "constant/Tables.ndtbl";
             field Table1;
         }
 
         Table2
         {
-            file  "constant/tables.ndtbl";
+            file  "constant/Tables.ndtbl";
             field Table2;
         }
 
         Table3
         {
-            file  "constant/tables.ndtbl";
+            file  "constant/Tables.ndtbl";
             field Table3;
-        }
-
-        Table4
-        {
-            file  "constant/tables.ndtbl";
-            field Table4;
         }
     }
 }
