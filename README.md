@@ -65,20 +65,22 @@ an OpenFOAM-style combustion model.
 Important detail:
 
 - If the dictionary selects `fgmModel`, the factory rewrites that to
-  `D4DummyModel`.
-- That means `fgmModel` acts more like a user-facing alias than a directly
-  instantiated class in this repo.
+  `D4DummyModel`, a deprecated default kept for backwards compatibility.
+- To select a specific fgmModel implementation, set `combustionModel` to its
+  concrete type name directly, e.g. `D3DummyModel` or `D4DummyModel`.
 
-### 3. Dummy FGM model
+### 3. Dummy FGM models
 
-`src/combustionModels/fgmModel/D4DummyModel/*`
+`src/combustionModels/fgmModel/D4DummyModel/*` and
+`src/combustionModels/fgmModel/D3DummyModel/*`
 
-- `D4DummyModel` is the only real active tabulated model here.
-- It reads four scalar fields from the case: `Param1`, `Param2`, `Param3`,
-  `Param4`.
-- It computes four output fields: `Table1`, `Table2`, `Table3`, `Table4`.
-- In `correct()`, it performs a 4D interpolation for every internal cell and
-  every boundary face.
+- `D4DummyModel` reads four scalar fields from the case: `Param1`, `Param2`,
+  `Param3`, `Param4`, and computes four output fields: `Table1` through
+  `Table4`.
+- `D3DummyModel` is the same model with one fewer parameter/table pair: it
+  reads `Param1`-`Param3` and computes `Table1`-`Table3`.
+- In `correct()`, each performs an interpolation of matching dimension for
+  every internal cell and every boundary face.
 
 This is the heart of the benchmark.
 

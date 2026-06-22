@@ -4,6 +4,7 @@ combustionModel/combustionModelNew.C
 tableSolver/tableSolver/tableSolver.C
 
 fgmModel/D4DummyModel/D4DummyModel.C
+fgmModel/D3DummyModel/D3DummyModel.C
 fgmModel/fgmModel/fgmModel.C
 
 noCombustion/noCombustion.C
