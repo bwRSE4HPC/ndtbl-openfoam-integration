@@ -17,7 +17,7 @@ Usage:
 Options:
   --resolution N     Add one table resolution to sweep. Repeatable.
   --mpi N            Add one MPI process count. Use 0 or 'none' for serial.
-                     Repeatable. Default sweep: none, 2, 4, 8.
+                     Repeatable. Default: 0 (serial).
   --table-suffix S   ndtbl precision suffix passed to tableGenerator.py.
                      Use f for float32 or d for float64. Default: f
   --results-dir DIR  Directory for CSV results. Default: benchmark-results
@@ -75,7 +75,7 @@ if [ ${#RESOLUTIONS[@]} -eq 0 ]; then
 fi
 
 if [ ${#MPI_COUNTS[@]} -eq 0 ]; then
-    MPI_COUNTS=(0 2 4 8)
+    MPI_COUNTS=(0)
 fi
 
 # Deduplicate while preserving order.
