@@ -126,7 +126,7 @@ if [ "$PARALLEL" = true ]; then
     runApplication decomposePar
 
     # Run solver in parallel
-    runApplication mpirun -np "$NPROCS" bwRSE4HPCFoam -parallel
+    runParallel -np "$NPROCS" bwRSE4HPCFoam
 
     # Reconstruct results
     runApplication reconstructPar

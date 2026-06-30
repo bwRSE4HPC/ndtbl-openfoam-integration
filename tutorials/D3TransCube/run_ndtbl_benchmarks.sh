@@ -141,7 +141,6 @@ run_case() {
     if [ "$mpi_ranks" -gt 0 ]; then
         parallel=true
         mode="mpi"
-        log_file="$SCRIPT_DIR/log.mpirun"
     fi
 
     echo "=== Resolution $resolution | mode=$mode | ranks=$mpi_ranks ==="
