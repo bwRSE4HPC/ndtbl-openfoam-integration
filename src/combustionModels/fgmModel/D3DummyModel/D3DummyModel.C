@@ -206,11 +206,16 @@ Foam::combustionModels::D3DummyModel::D3DummyModel
     ),
     tableInitializationStartCpuTime_(this->mesh().time().elapsedCpuTime()),
     ndtblDiagnostics_(false),
+    ndtblRankDiagnostics_(false),
     solver_(tableSolver<3>(this->coeffs(), tables(), parameters()))
 {
     if (this->coeffs().found("ndtblDiagnostics"))
     {
         this->coeffs().lookup("ndtblDiagnostics") >> ndtblDiagnostics_;
+    }
+    if (this->coeffs().found("ndtblRankDiagnostics"))
+    {
+        this->coeffs().lookup("ndtblRankDiagnostics") >> ndtblRankDiagnostics_;
     }
 
     Info<< "Total table loading/initialization time = "
@@ -258,7 +263,7 @@ void Foam::combustionModels::D3DummyModel::reportTableResidency
         return;
     }
 
-    solver_.reportResidency(label);
+    solver_.reportResidency(label, ndtblRankDiagnostics_);
 }
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

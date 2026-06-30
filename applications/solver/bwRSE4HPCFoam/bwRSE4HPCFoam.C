@@ -81,7 +81,7 @@ int main(int argc, char *argv[])
         runTime.write();
         if (outputTime)
         {
-            reaction->reportTableResidency("time");
+            reaction->reportTableResidency(runTime.timeName());
         }
     }
 

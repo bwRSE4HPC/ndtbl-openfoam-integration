@@ -23,6 +23,7 @@ D3DummyModelCoeffs
     rhoParam     1;
 
     ndtblDiagnostics true;
+    ndtblRankDiagnostics true;
 
     // Optional ndtbl interpolation method. Default is linear.
     //interpolation cubic;

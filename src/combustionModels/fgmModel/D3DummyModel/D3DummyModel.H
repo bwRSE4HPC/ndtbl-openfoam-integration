@@ -84,6 +84,9 @@ private:
         //- Enable ndtbl residency reporting
         bool ndtblDiagnostics_;
 
+        //- Enable per-rank ndtbl residency reporting
+        bool ndtblRankDiagnostics_;
+
         //- Tables
         tableSolver<3> solver_;
 

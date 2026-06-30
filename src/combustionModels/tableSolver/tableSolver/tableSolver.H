@@ -4,17 +4,24 @@
 #include "dictionary.H"
 #include "error.H"
 #include "fileName.H"
+#include "List.H"
+#include "Pstream.H"
 #include "PstreamReduceOps.H"
 #include "wordList.H"
 
 #include "ndtbl/ndtbl.hpp"
 
 #include <array>
+#include <cstdlib>
 #include <cstddef>
+#include <limits.h>
 #include <map>
+#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <vector>
+
+#include <unistd.h>
 
 namespace Foam
 {
@@ -42,6 +49,33 @@ inline std::string readFieldEntry(const dictionary& dict, const word& defaultNam
     }
 
     return std::string(fieldName.c_str());
+}
+
+/// Return the current host name for per-rank diagnostics.
+inline std::string hostName()
+{
+    char name[256];
+    name[0] = '\0';
+
+    if (gethostname(name, sizeof(name)) != 0)
+    {
+        return "unknown";
+    }
+
+    name[sizeof(name) - 1] = '\0';
+    return std::string(name);
+}
+
+/// Return the canonical path when available, otherwise preserve the input.
+inline std::string realPath(const std::string& path)
+{
+    char resolved[PATH_MAX];
+    if (realpath(path.c_str(), resolved) == nullptr)
+    {
+        return path;
+    }
+
+    return std::string(resolved);
 }
 
 } // End namespace detail
@@ -310,8 +344,10 @@ public:
     }
 
     /// Report mmap payload residency for every loaded table group.
-    void reportResidency(const word& label) const
+    void reportResidency(const word& label, const bool rankDiagnostics = false) const
     {
+        const scalar bytesToMiB = 1.0/(1024.0*1024.0);
+
         for (std::size_t groupI = 0; groupI < groups_.size(); ++groupI)
         {
             const tableGroup& group = groups_[groupI];
@@ -326,6 +362,47 @@ public:
                 WarningInFunction
                     << "Failed to query ndtbl residency for " << group.filePath
                     << ": " << error.what() << endl;
+            }
+
+            if (rankDiagnostics)
+            {
+                std::ostringstream rankLine;
+                rankLine
+                    << "ndtbl residency rank [" << label << "] group " << groupI
+                    << " rank " << Pstream::myProcNo()
+                    << " host " << detail::hostName()
+                    << " file \"" << group.filePath << "\""
+                    << " realpath \"" << detail::realPath(group.filePath) << "\": ";
+
+                if (info.available)
+                {
+                    rankLine
+                        << "resident fraction = " << info.resident_fraction
+                        << ", resident MiB = "
+                        << static_cast<scalar>(info.resident_bytes)*bytesToMiB
+                        << ", mapped MiB = "
+                        << static_cast<scalar>(info.total_pages)
+                         * static_cast<scalar>(info.page_size)
+                         * bytesToMiB;
+                }
+                else
+                {
+                    rankLine
+                        << "unavailable; enable ndtbl mmap diagnostics "
+                        << "and mmap-backed reads";
+                }
+
+                List<string> rankLines(Pstream::nProcs());
+                rankLines[Pstream::myProcNo()] = rankLine.str();
+                Pstream::gatherList(rankLines);
+
+                if (Pstream::master())
+                {
+                    forAll(rankLines, rankI)
+                    {
+                        Info<< rankLines[rankI].c_str() << endl;
+                    }
+                }
             }
 
             scalar rankCount = 1;
@@ -371,7 +448,6 @@ public:
                     continue;
                 }
 
-                const scalar bytesToMiB = 1.0/(1024.0*1024.0);
                 Info<< "resident fraction min/avg/max = "
                     << residentFractionMin << " / "
                     << residentFractionSum/rankCount << " / "
