@@ -14,6 +14,9 @@ HEAPTRACK_OUT="${HEAPTRACK_OUT:-}"            # optional explicit heaptrack outp
 PERF="${PERF:-false}"                         # profile solver with perf stat?
 PERF_EVENTS="${PERF_EVENTS:-page-faults,minor-faults,major-faults}"
 DROP_CACHES="${DROP_CACHES:-true}"            # drop filesystem caches before solver?
+TABLE_FILE="constant/Tables.ndtbl"            # table path used by combustionProperties
+TABLE_SHARED="constant/Tables.shared.ndtbl"   # shared source table for TMPDIR staging
+TABLE_TMP_SUBDIR="${TABLE_TMP_SUBDIR:-D3TransCube}"
 
 if [ "$HEAPTRACK" = true ] && [ "$PERF" = true ]; then
     echo "HEAPTRACK=true and PERF=true are mutually exclusive." >&2
@@ -37,6 +40,56 @@ runSolver()
     fi
 }
 
+stageTables()
+{
+    if [ -n "${TMPDIR:-}" ]; then
+        local table_tmp_dir="$TMPDIR/$TABLE_TMP_SUBDIR"
+        local table_tmp_file="$table_tmp_dir/Tables.ndtbl"
+
+        rm -f "$TABLE_FILE" "$TABLE_SHARED"
+
+        echo "Generating shared table source: $TABLE_SHARED"
+        python3 ./python/tableGenerator.py \
+            "$TABLERESOLUTION" \
+            "$TABLE_SUFFIX" \
+            "$TABLE_SHARED" || exit 1
+
+        echo "Linking $TABLE_FILE -> $table_tmp_file"
+        ln -s "$table_tmp_file" "$TABLE_FILE" || exit 1
+
+        if [ -n "${SLURM_JOB_ID:-}" ]; then
+            if ! command -v srun >/dev/null 2>&1; then
+                echo "TMPDIR staging in a Slurm job requires srun for per-node copies." >&2
+                exit 1
+            fi
+
+            echo "Copying table to TMPDIR once per allocated node"
+            local srun_args=(--ntasks-per-node=1)
+            if [ -n "${SLURM_JOB_NUM_NODES:-}" ]; then
+                srun_args+=(--nodes="$SLURM_JOB_NUM_NODES" --ntasks="$SLURM_JOB_NUM_NODES")
+            fi
+
+            srun "${srun_args[@]}" bash -c '
+                set -e
+                table_tmp_dir="$1"
+                table_shared="$2"
+                mkdir -p "$table_tmp_dir"
+                cp "$table_shared" "$table_tmp_dir/Tables.ndtbl"
+            ' sh "$table_tmp_dir" "$CASE_DIR/$TABLE_SHARED" || exit 1
+        else
+            echo "Copying table to local TMPDIR: $table_tmp_file"
+            mkdir -p "$table_tmp_dir" || exit 1
+            cp "$TABLE_SHARED" "$table_tmp_file" || exit 1
+        fi
+    else
+        rm -f "$TABLE_FILE" "$TABLE_SHARED"
+        python3 ./python/tableGenerator.py \
+            "$TABLERESOLUTION" \
+            "$TABLE_SUFFIX" \
+            "$TABLE_FILE" || exit 1
+    fi
+}
+
 cd "$CASE_DIR" || exit 1
 
 # Copy initial conditions
@@ -46,7 +99,7 @@ cp -rf 0_orig 0
 runApplication blockMesh
 
 # Create Tables
-python3 ./python/tableGenerator.py $TABLERESOLUTION $TABLE_SUFFIX
+stageTables
 
 if [ "$DROP_CACHES" = true ]; then
     sync

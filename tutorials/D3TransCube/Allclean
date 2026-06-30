@@ -12,7 +12,7 @@ rm -rf ./log*
 rm -rf ./constant/polyMesh
 
 # Delete tables
-rm -f ./constant/Tables.ndtbl
+rm -f ./constant/Tables.ndtbl ./constant/Tables.shared.ndtbl
 
 # Delete paraview files
 rm -f *.foam
