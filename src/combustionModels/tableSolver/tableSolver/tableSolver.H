@@ -366,11 +366,12 @@ public:
 
             if (rankDiagnostics)
             {
+                const std::string host = detail::hostName();
                 std::ostringstream rankLine;
                 rankLine
                     << "ndtbl residency rank [" << label << "] group " << groupI
                     << " rank " << Pstream::myProcNo()
-                    << " host " << detail::hostName()
+                    << " host " << host
                     << " file \"" << group.filePath << "\""
                     << " realpath \"" << detail::realPath(group.filePath) << "\": ";
 
@@ -384,6 +385,35 @@ public:
                         << static_cast<scalar>(info.total_pages)
                          * static_cast<scalar>(info.page_size)
                          * bytesToMiB;
+                    if (info.smaps_available)
+                    {
+                        rankLine
+                            << ", smaps mapping MiB = "
+                            << static_cast<scalar>(info.smaps_mapping_bytes)
+                             * bytesToMiB
+                            << ", smaps RSS MiB = "
+                            << static_cast<scalar>(info.smaps_rss_bytes)
+                             * bytesToMiB
+                            << ", smaps PSS MiB = "
+                            << static_cast<scalar>(info.smaps_pss_bytes)
+                             * bytesToMiB
+                            << ", smaps shared MiB = "
+                            << static_cast<scalar>
+                               (
+                                   info.smaps_shared_clean_bytes
+                                 + info.smaps_shared_dirty_bytes
+                               )*bytesToMiB
+                            << ", smaps private MiB = "
+                            << static_cast<scalar>
+                               (
+                                   info.smaps_private_clean_bytes
+                                 + info.smaps_private_dirty_bytes
+                               )*bytesToMiB;
+                    }
+                    else
+                    {
+                        rankLine << ", smaps unavailable";
+                    }
                 }
                 else
                 {
@@ -396,11 +426,73 @@ public:
                 rankLines[Pstream::myProcNo()] = rankLine.str();
                 Pstream::gatherList(rankLines);
 
+                List<string> rankHosts(Pstream::nProcs());
+                rankHosts[Pstream::myProcNo()] = host.c_str();
+                Pstream::gatherList(rankHosts);
+
+                List<scalar> rankSmapsAvailable(Pstream::nProcs(), scalar(0));
+                rankSmapsAvailable[Pstream::myProcNo()] =
+                    info.smaps_available ? 1 : 0;
+                Pstream::gatherList(rankSmapsAvailable);
+
+                List<scalar> rankSmapsRssMiB(Pstream::nProcs(), scalar(0));
+                rankSmapsRssMiB[Pstream::myProcNo()] =
+                    static_cast<scalar>(info.smaps_rss_bytes)*bytesToMiB;
+                Pstream::gatherList(rankSmapsRssMiB);
+
+                List<scalar> rankSmapsPssMiB(Pstream::nProcs(), scalar(0));
+                rankSmapsPssMiB[Pstream::myProcNo()] =
+                    static_cast<scalar>(info.smaps_pss_bytes)*bytesToMiB;
+                Pstream::gatherList(rankSmapsPssMiB);
+
                 if (Pstream::master())
                 {
                     forAll(rankLines, rankI)
                     {
                         Info<< rankLines[rankI].c_str() << endl;
+                    }
+
+                    List<bool> hostPrinted(Pstream::nProcs(), false);
+                    forAll(rankHosts, hostI)
+                    {
+                        if (hostPrinted[hostI])
+                        {
+                            continue;
+                        }
+
+                        Foam::label hostRankCount = 0;
+                        scalar hostSmapsAvailable = 0;
+                        scalar hostRssMiB = 0;
+                        scalar hostPssMiB = 0;
+
+                        forAll(rankHosts, rankI)
+                        {
+                            if (rankHosts[rankI] == rankHosts[hostI])
+                            {
+                                hostPrinted[rankI] = true;
+                                ++hostRankCount;
+                                hostSmapsAvailable += rankSmapsAvailable[rankI];
+                                hostRssMiB += rankSmapsRssMiB[rankI];
+                                hostPssMiB += rankSmapsPssMiB[rankI];
+                            }
+                        }
+
+                        Info<< "ndtbl residency host [" << label << "] group "
+                            << groupI
+                            << " host " << rankHosts[hostI].c_str()
+                            << ": ranks = " << hostRankCount;
+                        if (hostSmapsAvailable == hostRankCount)
+                        {
+                            Info<< ", smaps RSS MiB sum = " << hostRssMiB
+                                << ", smaps PSS MiB sum = " << hostPssMiB;
+                        }
+                        else
+                        {
+                            Info<< ", smaps available on "
+                                << hostSmapsAvailable << " / "
+                                << hostRankCount << " ranks";
+                        }
+                        Info<< endl;
                     }
                 }
             }

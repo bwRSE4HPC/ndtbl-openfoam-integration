@@ -17,6 +17,7 @@ DROP_CACHES="${DROP_CACHES:-true}"            # drop filesystem caches before so
 TABLE_FILE="constant/Tables.ndtbl"            # table path used by combustionProperties
 TABLE_SHARED="constant/Tables.shared.ndtbl"   # shared source table for TMPDIR staging
 TABLE_TMP_SUBDIR="${TABLE_TMP_SUBDIR:-D3TransCube}"
+TABLE_EVICT_CACHE="${TABLE_EVICT_CACHE:-true}"
 
 if [ "$HEAPTRACK" = true ] && [ "$PERF" = true ]; then
     echo "HEAPTRACK=true and PERF=true are mutually exclusive." >&2
@@ -38,6 +39,30 @@ runSolver()
     else
         "$@"
     fi
+}
+
+evictTableCache()
+{
+    local table_file="$1"
+
+    if [ "$TABLE_EVICT_CACHE" != true ]; then
+        return
+    fi
+
+    python3 -c '
+import os
+import sys
+
+path = sys.argv[1]
+fd = os.open(path, os.O_RDONLY)
+try:
+    if hasattr(os, "posix_fadvise"):
+        os.posix_fadvise(fd, 0, 0, os.POSIX_FADV_DONTNEED)
+finally:
+    os.close(fd)
+' "$table_file" || {
+        echo "Warning: failed to evict table cache for $table_file" >&2
+    }
 }
 
 stageTables()
@@ -73,13 +98,29 @@ stageTables()
                 set -e
                 table_tmp_dir="$1"
                 table_shared="$2"
+                evict_cache="$3"
                 mkdir -p "$table_tmp_dir"
                 cp "$table_shared" "$table_tmp_dir/Tables.ndtbl"
-            ' sh "$table_tmp_dir" "$CASE_DIR/$TABLE_SHARED" || exit 1
+                if [ "$evict_cache" = true ]; then
+                    python3 -c '"'"'
+import os
+import sys
+
+path = sys.argv[1]
+fd = os.open(path, os.O_RDONLY)
+try:
+    if hasattr(os, "posix_fadvise"):
+        os.posix_fadvise(fd, 0, 0, os.POSIX_FADV_DONTNEED)
+finally:
+    os.close(fd)
+'"'"' "$table_tmp_dir/Tables.ndtbl"
+                fi
+            ' sh "$table_tmp_dir" "$CASE_DIR/$TABLE_SHARED" "$TABLE_EVICT_CACHE" || exit 1
         else
             echo "Copying table to local TMPDIR: $table_tmp_file"
             mkdir -p "$table_tmp_dir" || exit 1
             cp "$TABLE_SHARED" "$table_tmp_file" || exit 1
+            evictTableCache "$table_tmp_file"
         fi
     else
         rm -f "$TABLE_FILE" "$TABLE_SHARED"
@@ -87,6 +128,7 @@ stageTables()
             "$TABLERESOLUTION" \
             "$TABLE_SUFFIX" \
             "$TABLE_FILE" || exit 1
+        evictTableCache "$TABLE_FILE"
     fi
 }
 
