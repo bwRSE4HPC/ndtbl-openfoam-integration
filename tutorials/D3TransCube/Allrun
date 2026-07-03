@@ -3,6 +3,12 @@
 . "$WM_PROJECT_DIR/bin/tools/RunFunctions"
 
 CASE_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+NDTBL_STAGING_SCRIPT="$CASE_DIR/../../scripts/ndtbl_table_staging.sh"
+if [ ! -f "$NDTBL_STAGING_SCRIPT" ]; then
+    echo "Missing ndtbl table staging helper: $NDTBL_STAGING_SCRIPT" >&2
+    exit 1
+fi
+. "$NDTBL_STAGING_SCRIPT"
 
 # User settings, overridable through environment variables
 TABLERESOLUTION="${TABLERESOLUTION:-101}"      # select table resolution (2, 21, 31, 41, 46, 51)
@@ -13,9 +19,10 @@ HEAPTRACK="${HEAPTRACK:-false}"               # profile solver with heaptrack?
 HEAPTRACK_OUT="${HEAPTRACK_OUT:-}"            # optional explicit heaptrack output file
 PERF="${PERF:-false}"                         # profile solver with perf stat?
 PERF_EVENTS="${PERF_EVENTS:-page-faults,minor-faults,major-faults}"
-DROP_CACHES="${DROP_CACHES:-true}"            # drop filesystem caches before solver?
+DROP_CACHES="${DROP_CACHES:-false}"           # local-PC testing only: drop filesystem caches before solver?
 TABLE_FILE="constant/Tables.ndtbl"            # table path used by combustionProperties
 TABLE_SHARED="constant/Tables.shared.ndtbl"   # shared source table for TMPDIR staging
+TABLE_SOURCE="${TABLE_SOURCE:-}"              # optional pre-generated source table
 TABLE_TMP_SUBDIR="${TABLE_TMP_SUBDIR:-D3TransCube}"
 TABLE_EVICT_CACHE="${TABLE_EVICT_CACHE:-true}"
 
@@ -41,95 +48,38 @@ runSolver()
     fi
 }
 
-evictTableCache()
+prepareTables()
 {
-    local table_file="$1"
+    local table_source="${TABLE_SOURCE:-}"
 
-    if [ "$TABLE_EVICT_CACHE" != true ]; then
-        return
-    fi
-
-    python3 -c '
-import os
-import sys
-
-path = sys.argv[1]
-fd = os.open(path, os.O_RDONLY)
-try:
-    if hasattr(os, "posix_fadvise"):
-        os.posix_fadvise(fd, 0, 0, os.POSIX_FADV_DONTNEED)
-finally:
-    os.close(fd)
-' "$table_file" || {
-        echo "Warning: failed to evict table cache for $table_file" >&2
-    }
-}
-
-stageTables()
-{
-    if [ -n "${TMPDIR:-}" ]; then
-        local table_tmp_dir="$TMPDIR/$TABLE_TMP_SUBDIR"
-        local table_tmp_file="$table_tmp_dir/Tables.ndtbl"
-
+    if [ -z "$table_source" ]; then
         rm -f "$TABLE_FILE" "$TABLE_SHARED"
-
-        echo "Generating shared table source: $TABLE_SHARED"
-        python3 ./python/tableGenerator.py \
-            "$TABLERESOLUTION" \
-            "$TABLE_SUFFIX" \
-            "$TABLE_SHARED" || exit 1
-
-        echo "Linking $TABLE_FILE -> $table_tmp_file"
-        ln -s "$table_tmp_file" "$TABLE_FILE" || exit 1
-
-        if [ -n "${SLURM_JOB_ID:-}" ]; then
-            if ! command -v srun >/dev/null 2>&1; then
-                echo "TMPDIR staging in a Slurm job requires srun for per-node copies." >&2
-                exit 1
-            fi
-
-            echo "Copying table to TMPDIR once per allocated node"
-            local srun_args=(--ntasks-per-node=1)
-            if [ -n "${SLURM_JOB_NUM_NODES:-}" ]; then
-                srun_args+=(--nodes="$SLURM_JOB_NUM_NODES" --ntasks="$SLURM_JOB_NUM_NODES")
-            fi
-
-            srun "${srun_args[@]}" bash -c '
-                set -e
-                table_tmp_dir="$1"
-                table_shared="$2"
-                evict_cache="$3"
-                mkdir -p "$table_tmp_dir"
-                cp "$table_shared" "$table_tmp_dir/Tables.ndtbl"
-                if [ "$evict_cache" = true ]; then
-                    python3 -c '"'"'
-import os
-import sys
-
-path = sys.argv[1]
-fd = os.open(path, os.O_RDONLY)
-try:
-    if hasattr(os, "posix_fadvise"):
-        os.posix_fadvise(fd, 0, 0, os.POSIX_FADV_DONTNEED)
-finally:
-    os.close(fd)
-'"'"' "$table_tmp_dir/Tables.ndtbl"
-                fi
-            ' sh "$table_tmp_dir" "$CASE_DIR/$TABLE_SHARED" "$TABLE_EVICT_CACHE" || exit 1
-        else
-            echo "Copying table to local TMPDIR: $table_tmp_file"
-            mkdir -p "$table_tmp_dir" || exit 1
-            cp "$TABLE_SHARED" "$table_tmp_file" || exit 1
-            evictTableCache "$table_tmp_file"
+        local generated_table="$TABLE_FILE"
+        if [ -n "${TMPDIR:-}" ]; then
+            generated_table="$TABLE_SHARED"
         fi
-    else
-        rm -f "$TABLE_FILE" "$TABLE_SHARED"
+
         python3 ./python/tableGenerator.py \
             "$TABLERESOLUTION" \
             "$TABLE_SUFFIX" \
-            "$TABLE_FILE" || exit 1
-        evictTableCache "$TABLE_FILE"
+            "$generated_table" || exit 1
+
+        if [ -z "${TMPDIR:-}" ]; then
+            if [ "$TABLE_EVICT_CACHE" = true ]; then
+                ndtbl_evict_file_cache "$TABLE_FILE"
+            fi
+            return
+        fi
+
+        table_source="$CASE_DIR/$TABLE_SHARED"
     fi
+
+    ndtbl_stage_table \
+        "$table_source" \
+        "$TABLE_FILE" \
+        "$TABLE_TMP_SUBDIR" \
+        "Tables.ndtbl" \
+        "$TABLE_EVICT_CACHE" || exit 1
 }
 
 cd "$CASE_DIR" || exit 1
@@ -141,7 +91,7 @@ cp -rf 0_orig 0
 runApplication blockMesh
 
 # Create Tables
-stageTables
+prepareTables
 
 if [ "$DROP_CACHES" = true ]; then
     sync
