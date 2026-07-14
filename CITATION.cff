@@ -1,0 +1,29 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "ndtblFOAM: An OpenFOAM integration and memory-residency benchmark for ndtbl"
+type: software
+abstract: "OpenFOAM benchmark application and synthetic transport tutorial for evaluating multidimensional table lookup, memory mapping, and page residency with ndtbl."
+authors:
+  - family-names: Müller
+    given-names: Hagen
+    affiliation: "Mannheim University of Applied Sciences, Germany"
+    orcid: "https://orcid.org/0000-0001-5991-4454"
+  - family-names: Hiestermann
+    given-names: Marian
+    affiliation: "MTU Aero Engines AG, Germany"
+    orcid: "https://orcid.org/0009-0002-0437-0001"
+  - family-names: Isensee
+    given-names: Thomas
+    affiliation: "Scientific Software Center (SSC), Interdisciplinary Center for Scientific Computing (IWR), Heidelberg University, Germany"
+    orcid: "https://orcid.org/0000-0002-7242-4529"
+keywords:
+  - "combustion"
+  - "OpenFOAM"
+  - "table lookup"
+  - "multidimensional interpolation"
+  - "memory mapping"
+  - "research software"
+version: "0.0.1"
+date-released: "2026-04-01"
+license: GPL-3.0-or-later
+repository-code: https://github.com/bwrse4hpc/bwRSE4HPCFoam
