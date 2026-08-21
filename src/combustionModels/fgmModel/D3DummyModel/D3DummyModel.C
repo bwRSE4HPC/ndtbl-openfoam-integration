@@ -263,7 +263,7 @@ void Foam::combustionModels::D3DummyModel::reportTableResidency
         return;
     }
 
-    solver_.reportResidency(label, ndtblRankDiagnostics_);
+    solver_.reportResidency(label, this->mesh().time(), ndtblRankDiagnostics_);
 }
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

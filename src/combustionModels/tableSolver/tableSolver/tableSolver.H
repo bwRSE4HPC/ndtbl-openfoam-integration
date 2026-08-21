@@ -5,8 +5,10 @@
 #include "error.H"
 #include "fileName.H"
 #include "List.H"
+#include "OSspecific.H"
 #include "Pstream.H"
 #include "PstreamReduceOps.H"
+#include "Time.H"
 #include "wordList.H"
 
 #include "ndtbl/ndtbl.hpp"
@@ -14,7 +16,10 @@
 #include <array>
 #include <cstdlib>
 #include <cstddef>
+#include <fstream>
+#include <iomanip>
 #include <limits.h>
+#include <limits>
 #include <map>
 #include <sstream>
 #include <stdexcept>
@@ -78,6 +83,119 @@ inline std::string realPath(const std::string& path)
     return std::string(resolved);
 }
 
+/// Reject characters that would corrupt the one-record-per-line TSV format.
+inline void validateTsvString(const char* field, const std::string& value)
+{
+    if (value.find_first_of("\t\r\n") != std::string::npos)
+    {
+        FatalErrorInFunction
+            << "Cannot write ndtbl residency TSV field " << field
+            << " because it contains a tab or newline: " << value
+            << exit(FatalError);
+    }
+}
+
+/// Append an available value or the TSV missing-value marker.
+template<class Value>
+inline void appendTsvOptional
+(
+    std::ostringstream& row,
+    const bool available,
+    const Value& value
+)
+{
+    row << '\t';
+    if (available)
+    {
+        row << value;
+    }
+    else
+    {
+        row << "nan";
+    }
+}
+
+/// Build one version-1 rank/group residency TSV record.
+inline std::string residencyTsvRow
+(
+    const std::size_t sample,
+    const Time& runTime,
+    const word& label,
+    const std::size_t group,
+    const std::string& host,
+    const std::string& file,
+    const std::string& resolvedFile,
+    const ndtbl::residency_info& info
+)
+{
+    validateTsvString("label", std::string(label.c_str()));
+    validateTsvString("host", host);
+    validateTsvString("file", file);
+    validateTsvString("realpath", resolvedFile);
+
+    std::ostringstream row;
+    row << std::setprecision(std::numeric_limits<double>::max_digits10)
+        << sample
+        << '\t' << runTime.value()
+        << '\t' << label
+        << '\t' << runTime.elapsedClockTime()
+        << '\t' << runTime.elapsedCpuTime()
+        << '\t' << group
+        << '\t' << Pstream::myProcNo()
+        << '\t' << host
+        << '\t' << file
+        << '\t' << resolvedFile
+        << '\t' << (info.available ? 1 : 0);
+
+    appendTsvOptional(row, info.available, info.page_size);
+    appendTsvOptional(row, info.available, info.total_pages);
+    appendTsvOptional(row, info.available, info.resident_pages);
+    appendTsvOptional(row, info.available, info.resident_bytes);
+    appendTsvOptional(row, info.available, info.resident_fraction);
+
+    row << '\t' << (info.smaps_available ? 1 : 0);
+    appendTsvOptional(row, info.smaps_available, info.smaps_mapping_bytes);
+    appendTsvOptional(row, info.smaps_available, info.smaps_rss_bytes);
+    appendTsvOptional(row, info.smaps_available, info.smaps_pss_bytes);
+    appendTsvOptional(row, info.smaps_available, info.smaps_shared_clean_bytes);
+    appendTsvOptional(row, info.smaps_available, info.smaps_shared_dirty_bytes);
+    appendTsvOptional(row, info.smaps_available, info.smaps_private_clean_bytes);
+    appendTsvOptional(row, info.smaps_available, info.smaps_private_dirty_bytes);
+
+    row << '\t' << (info.smaps_locked_available ? 1 : 0);
+    appendTsvOptional
+    (
+        row,
+        info.smaps_locked_available,
+        info.smaps_locked_bytes
+    );
+
+    row << '\t' << (info.smaps_vm_flags_available ? 1 : 0);
+    appendTsvOptional
+    (
+        row,
+        info.smaps_vm_flags_available,
+        info.smaps_lock_enabled ? 1 : 0
+    );
+    appendTsvOptional
+    (
+        row,
+        info.smaps_vm_flags_available,
+        info.smaps_lock_on_fault ? 1 : 0
+    );
+
+    row << '\t' << (info.process_vmlck_available ? 1 : 0);
+    appendTsvOptional
+    (
+        row,
+        info.process_vmlck_available,
+        info.process_vmlck_bytes
+    );
+
+    row << '\n';
+    return row.str();
+}
+
 } // End namespace detail
 
 /// Loads ndtbl table files and evaluates configured output fields.
@@ -130,6 +248,84 @@ private:
 
     /// Interpolation scheme used for all table evaluations.
     interpolationMethod interpolationMethod_;
+
+    /// Index of the next residency report written by this solver instance.
+    mutable std::size_t residencyReportSample_;
+
+    /// Whether the current start-time TSV has received its version/header.
+    mutable bool residencyTsvInitialized_;
+
+    /// Write gathered version-1 TSV rows from the master process.
+    void writeResidencyTsv(const Time& runTime, const std::string& rows) const
+    {
+        if (!Pstream::master())
+        {
+            return;
+        }
+
+        const word startTimeName =
+            runTime.timeName(runTime.startTime().value());
+        const fileName outputDir =
+            runTime.globalPath()/"postProcessing"/"ndtblResidency"/startTimeName;
+        const fileName outputPath = outputDir/"residency.tsv";
+
+        if (!residencyTsvInitialized_ && !Foam::mkDir(outputDir))
+        {
+            FatalErrorInFunction
+                << "Failed to create ndtbl residency output directory "
+                << outputDir << exit(FatalError);
+        }
+
+        const std::ios_base::openmode mode =
+            std::ios_base::out
+          | (residencyTsvInitialized_
+                ? std::ios_base::app
+                : std::ios_base::trunc);
+        std::ofstream output(outputPath.c_str(), mode);
+        if (!output.is_open())
+        {
+            FatalErrorInFunction
+                << "Failed to open ndtbl residency output file " << outputPath
+                << exit(FatalError);
+        }
+
+        if (!residencyTsvInitialized_)
+        {
+            output
+                << "# ndtbl_residency_tsv_version=1\n"
+                << "sample\ttime\tlabel\telapsed_clock_s\telapsed_cpu_s"
+                << "\tgroup\trank\thost\tfile\trealpath"
+                << "\tmincore_available\tpage_size_bytes\ttotal_pages"
+                << "\tresident_pages\tresident_bytes\tresident_fraction"
+                << "\tsmaps_available\tsmaps_mapping_bytes"
+                << "\tsmaps_rss_bytes\tsmaps_pss_bytes"
+                << "\tsmaps_shared_clean_bytes\tsmaps_shared_dirty_bytes"
+                << "\tsmaps_private_clean_bytes\tsmaps_private_dirty_bytes"
+                << "\tsmaps_locked_available\tsmaps_locked_bytes"
+                << "\tsmaps_vm_flags_available\tsmaps_lock_enabled"
+                << "\tsmaps_lock_on_fault\tprocess_vmlck_available"
+                << "\tprocess_vmlck_bytes\n";
+        }
+
+        output << rows;
+        output.flush();
+        if (!output.good())
+        {
+            FatalErrorInFunction
+                << "Failed to write ndtbl residency output file " << outputPath
+                << exit(FatalError);
+        }
+
+        output.close();
+        if (output.fail())
+        {
+            FatalErrorInFunction
+                << "Failed to close ndtbl residency output file " << outputPath
+                << exit(FatalError);
+        }
+
+        residencyTsvInitialized_ = true;
+    }
 
     /// Return reusable per-thread storage for full-field interpolation results.
     static std::vector<scalar>& threadScratchValues()
@@ -196,7 +392,9 @@ public:
     tableSolver(const dictionary& coeffs, const wordList& tableNames, const wordList& paramNames)
     :
         NOut(tableNames.size()),
-        interpolationMethod_(readInterpolationMethod(coeffs))
+        interpolationMethod_(readInterpolationMethod(coeffs)),
+        residencyReportSample_(0),
+        residencyTsvInitialized_(false)
     {
         if (paramNames.size() != static_cast<label>(Dim))
         {
@@ -343,15 +541,22 @@ public:
         }
     }
 
-    /// Report mmap payload residency for every loaded table group.
-    void reportResidency(const word& label, const bool rankDiagnostics = false) const
+    /// Report mmap cache residency and Linux lock state for loaded table groups.
+    void reportResidency
+    (
+        const word& label,
+        const Time& runTime,
+        const bool rankDiagnostics = false
+    ) const
     {
         const scalar bytesToMiB = 1.0/(1024.0*1024.0);
+        const std::string host = detail::hostName();
+        std::ostringstream tsvRows;
 
         for (std::size_t groupI = 0; groupI < groups_.size(); ++groupI)
         {
             const tableGroup& group = groups_[groupI];
-            ndtbl::residency_info info = { false, 0, 0, 0, 0, 0.0 };
+            ndtbl::residency_info info;
 
             try
             {
@@ -364,21 +569,125 @@ public:
                     << ": " << error.what() << endl;
             }
 
+            const std::string resolvedFile = detail::realPath(group.filePath);
+            const std::string localTsvRow = detail::residencyTsvRow
+            (
+                residencyReportSample_,
+                runTime,
+                label,
+                groupI,
+                host,
+                group.filePath,
+                resolvedFile,
+                info
+            );
+            List<string> rankTsvRows(Pstream::nProcs());
+            rankTsvRows[Pstream::myProcNo()] = localTsvRow;
+            Pstream::gatherList(rankTsvRows);
+            if (Pstream::master())
+            {
+                forAll(rankTsvRows, rankI)
+                {
+                    tsvRows << rankTsvRows[rankI].c_str();
+                }
+            }
+
+            const bool onFault =
+                info.smaps_vm_flags_available
+             && info.smaps_lock_enabled
+             && info.smaps_lock_on_fault;
+            const bool eager =
+                info.smaps_vm_flags_available
+             && info.smaps_lock_enabled
+             && !info.smaps_lock_on_fault;
+            const bool unlocked =
+                info.smaps_vm_flags_available
+             && !info.smaps_lock_enabled
+             && !info.smaps_lock_on_fault;
+            const char* const lockPolicy = onFault
+                ? "on-fault"
+                : (eager ? "eager" : (unlocked ? "unlocked" : "unknown"));
+
+            if (groupI == 0)
+            {
+                scalar rankCount = 1;
+                scalar vmLckAvailableCount =
+                    info.process_vmlck_available ? 1 : 0;
+                scalar vmLckBytesSum = info.process_vmlck_available
+                    ? static_cast<scalar>(info.process_vmlck_bytes)
+                    : 0;
+                scalar vmLckBytesMin = vmLckBytesSum;
+                scalar vmLckBytesMax = vmLckBytesSum;
+
+                Foam::reduce(rankCount, Foam::sumOp<scalar>());
+                Foam::reduce(vmLckAvailableCount, Foam::sumOp<scalar>());
+                Foam::reduce(vmLckBytesSum, Foam::sumOp<scalar>());
+                Foam::reduce(vmLckBytesMin, Foam::minOp<scalar>());
+                Foam::reduce(vmLckBytesMax, Foam::maxOp<scalar>());
+
+                if (Pstream::master())
+                {
+                    Info<< "ndtbl memory [" << label << "]:" << endl;
+                    if (vmLckAvailableCount == rankCount)
+                    {
+                        Info<< "  process/status: VmLck MiB min/avg/max = "
+                            << vmLckBytesMin*bytesToMiB << " / "
+                            << (vmLckBytesSum/rankCount)*bytesToMiB << " / "
+                            << vmLckBytesMax*bytesToMiB << endl;
+                    }
+                    else
+                    {
+                        Info<< "  process/status: VmLck available on "
+                            << vmLckAvailableCount << " / " << rankCount
+                            << " ranks" << endl;
+                    }
+                }
+            }
+
             if (rankDiagnostics)
             {
-                const std::string host = detail::hostName();
+                if (groupI == 0)
+                {
+                    std::ostringstream processLine;
+                    processLine
+                        << "ndtbl memory rank [" << label << "] rank "
+                        << Pstream::myProcNo() << " host " << host << ": ";
+                    if (info.process_vmlck_available)
+                    {
+                        processLine
+                            << "process/status VmLck MiB = "
+                            << static_cast<scalar>(info.process_vmlck_bytes)
+                             * bytesToMiB;
+                    }
+                    else
+                    {
+                        processLine << "process/status VmLck unavailable";
+                    }
+
+                    List<string> processLines(Pstream::nProcs());
+                    processLines[Pstream::myProcNo()] = processLine.str();
+                    Pstream::gatherList(processLines);
+                    if (Pstream::master())
+                    {
+                        forAll(processLines, rankI)
+                        {
+                            Info<< processLines[rankI].c_str() << endl;
+                        }
+                    }
+                }
+
                 std::ostringstream rankLine;
                 rankLine
                     << "ndtbl residency rank [" << label << "] group " << groupI
                     << " rank " << Pstream::myProcNo()
                     << " host " << host
                     << " file \"" << group.filePath << "\""
-                    << " realpath \"" << detail::realPath(group.filePath) << "\": ";
+                    << " realpath \"" << resolvedFile << "\": ";
 
                 if (info.available)
                 {
                     rankLine
-                        << "resident fraction = " << info.resident_fraction
+                        << "cache/mincore fraction = " << info.resident_fraction
                         << ", resident MiB = "
                         << static_cast<scalar>(info.resident_bytes)*bytesToMiB
                         << ", mapped MiB = "
@@ -388,27 +697,48 @@ public:
                     if (info.smaps_available)
                     {
                         rankLine
-                            << ", smaps mapping MiB = "
+                            << "; mapping/smaps mapping MiB = "
                             << static_cast<scalar>(info.smaps_mapping_bytes)
                              * bytesToMiB
-                            << ", smaps RSS MiB = "
+                            << ", RSS MiB = "
                             << static_cast<scalar>(info.smaps_rss_bytes)
                              * bytesToMiB
-                            << ", smaps PSS MiB = "
+                            << ", PSS MiB = "
                             << static_cast<scalar>(info.smaps_pss_bytes)
                              * bytesToMiB
-                            << ", smaps shared MiB = "
+                            << ", shared MiB = "
                             << static_cast<scalar>
                                (
                                    info.smaps_shared_clean_bytes
                                  + info.smaps_shared_dirty_bytes
                                )*bytesToMiB
-                            << ", smaps private MiB = "
+                            << ", private MiB = "
                             << static_cast<scalar>
                                (
                                    info.smaps_private_clean_bytes
                                  + info.smaps_private_dirty_bytes
                                )*bytesToMiB;
+                        if (info.smaps_locked_available)
+                        {
+                            rankLine
+                                << ", Locked MiB = "
+                                << static_cast<scalar>(info.smaps_locked_bytes)
+                                 * bytesToMiB;
+                            if (info.smaps_mapping_bytes != 0)
+                            {
+                                rankLine
+                                    << ", locked fraction = "
+                                    << static_cast<scalar>
+                                       (info.smaps_locked_bytes)
+                                     / static_cast<scalar>
+                                       (info.smaps_mapping_bytes);
+                            }
+                        }
+                        else
+                        {
+                            rankLine << ", Locked unavailable";
+                        }
+                        rankLine << ", lock policy = " << lockPolicy;
                     }
                     else
                     {
@@ -445,6 +775,20 @@ public:
                     static_cast<scalar>(info.smaps_pss_bytes)*bytesToMiB;
                 Pstream::gatherList(rankSmapsPssMiB);
 
+                List<scalar> rankSmapsLockedAvailable
+                (
+                    Pstream::nProcs(),
+                    scalar(0)
+                );
+                rankSmapsLockedAvailable[Pstream::myProcNo()] =
+                    info.smaps_locked_available ? 1 : 0;
+                Pstream::gatherList(rankSmapsLockedAvailable);
+
+                List<scalar> rankSmapsLockedMiB(Pstream::nProcs(), scalar(0));
+                rankSmapsLockedMiB[Pstream::myProcNo()] =
+                    static_cast<scalar>(info.smaps_locked_bytes)*bytesToMiB;
+                Pstream::gatherList(rankSmapsLockedMiB);
+
                 if (Pstream::master())
                 {
                     forAll(rankLines, rankI)
@@ -464,6 +808,8 @@ public:
                         scalar hostSmapsAvailable = 0;
                         scalar hostRssMiB = 0;
                         scalar hostPssMiB = 0;
+                        scalar hostSmapsLockedAvailable = 0;
+                        scalar hostLockedMiB = 0;
 
                         forAll(rankHosts, rankI)
                         {
@@ -474,6 +820,9 @@ public:
                                 hostSmapsAvailable += rankSmapsAvailable[rankI];
                                 hostRssMiB += rankSmapsRssMiB[rankI];
                                 hostPssMiB += rankSmapsPssMiB[rankI];
+                                hostSmapsLockedAvailable +=
+                                    rankSmapsLockedAvailable[rankI];
+                                hostLockedMiB += rankSmapsLockedMiB[rankI];
                             }
                         }
 
@@ -483,13 +832,26 @@ public:
                             << ": ranks = " << hostRankCount;
                         if (hostSmapsAvailable == hostRankCount)
                         {
-                            Info<< ", smaps RSS MiB sum = " << hostRssMiB
-                                << ", smaps PSS MiB sum = " << hostPssMiB;
+                            Info<< ", smaps RSS MiB logical rank sum = "
+                                << hostRssMiB
+                                << ", smaps PSS MiB logical rank sum = "
+                                << hostPssMiB;
                         }
                         else
                         {
                             Info<< ", smaps available on "
                                 << hostSmapsAvailable << " / "
+                                << hostRankCount << " ranks";
+                        }
+                        if (hostSmapsLockedAvailable == hostRankCount)
+                        {
+                            Info<< ", smaps Locked MiB logical rank sum = "
+                                << hostLockedMiB;
+                        }
+                        else
+                        {
+                            Info<< ", smaps Locked available on "
+                                << hostSmapsLockedAvailable << " / "
                                 << hostRankCount << " ranks";
                         }
                         Info<< endl;
@@ -514,8 +876,37 @@ public:
             scalar residentBytesMin = residentBytes;
             scalar residentBytesMax = residentBytes;
             scalar totalBytesMax = info.available
-                ? static_cast<scalar>(info.total_pages) * static_cast<scalar>(info.page_size)
+                ? static_cast<scalar>(info.total_pages)
+                 * static_cast<scalar>(info.page_size)
                 : 0;
+            scalar smapsAvailableCount = info.smaps_available ? 1 : 0;
+            scalar smapsRssBytesSum = info.smaps_available
+                ? static_cast<scalar>(info.smaps_rss_bytes)
+                : 0;
+            scalar smapsRssBytesMin = smapsRssBytesSum;
+            scalar smapsRssBytesMax = smapsRssBytesSum;
+            scalar smapsMappingBytesMax = info.smaps_available
+                ? static_cast<scalar>(info.smaps_mapping_bytes)
+                : 0;
+            scalar smapsLockedAvailableCount =
+                info.smaps_locked_available ? 1 : 0;
+            scalar smapsLockedBytesSum = info.smaps_locked_available
+                ? static_cast<scalar>(info.smaps_locked_bytes)
+                : 0;
+            scalar smapsLockedBytesMin = smapsLockedBytesSum;
+            scalar smapsLockedBytesMax = smapsLockedBytesSum;
+            const scalar localLockedFraction =
+                info.smaps_locked_available && info.smaps_mapping_bytes != 0
+                ? static_cast<scalar>(info.smaps_locked_bytes)
+                 / static_cast<scalar>(info.smaps_mapping_bytes)
+                : 0;
+            scalar smapsLockedFractionSum = localLockedFraction;
+            scalar smapsLockedFractionMin = localLockedFraction;
+            scalar smapsLockedFractionMax = localLockedFraction;
+            scalar onFaultCount = onFault ? 1 : 0;
+            scalar eagerCount = eager ? 1 : 0;
+            scalar unlockedCount = unlocked ? 1 : 0;
+            scalar unknownCount = onFault || eager || unlocked ? 0 : 1;
 
             Foam::reduce(rankCount, Foam::sumOp<scalar>());
             Foam::reduce(availableCount, Foam::sumOp<scalar>());
@@ -526,32 +917,92 @@ public:
             Foam::reduce(residentBytesMin, Foam::minOp<scalar>());
             Foam::reduce(residentBytesMax, Foam::maxOp<scalar>());
             Foam::reduce(totalBytesMax, Foam::maxOp<scalar>());
+            Foam::reduce(smapsAvailableCount, Foam::sumOp<scalar>());
+            Foam::reduce(smapsRssBytesSum, Foam::sumOp<scalar>());
+            Foam::reduce(smapsRssBytesMin, Foam::minOp<scalar>());
+            Foam::reduce(smapsRssBytesMax, Foam::maxOp<scalar>());
+            Foam::reduce(smapsMappingBytesMax, Foam::maxOp<scalar>());
+            Foam::reduce(smapsLockedAvailableCount, Foam::sumOp<scalar>());
+            Foam::reduce(smapsLockedBytesSum, Foam::sumOp<scalar>());
+            Foam::reduce(smapsLockedBytesMin, Foam::minOp<scalar>());
+            Foam::reduce(smapsLockedBytesMax, Foam::maxOp<scalar>());
+            Foam::reduce(smapsLockedFractionSum, Foam::sumOp<scalar>());
+            Foam::reduce(smapsLockedFractionMin, Foam::minOp<scalar>());
+            Foam::reduce(smapsLockedFractionMax, Foam::maxOp<scalar>());
+            Foam::reduce(onFaultCount, Foam::sumOp<scalar>());
+            Foam::reduce(eagerCount, Foam::sumOp<scalar>());
+            Foam::reduce(unlockedCount, Foam::sumOp<scalar>());
+            Foam::reduce(unknownCount, Foam::sumOp<scalar>());
 
             if (Pstream::master())
             {
                 Info<< "ndtbl residency [" << label << "] group " << groupI
-                    << " file " << group.filePath << ": ";
+                    << " file \"" << group.filePath << "\":" << endl;
 
                 if (availableCount != rankCount)
                 {
-                    Info<< "available on " << availableCount << " / " << rankCount
-                        << " ranks; enable ndtbl mmap diagnostics and mmap-backed reads"
-                        << endl;
-                    continue;
+                    Info<< "  cache/mincore: available on " << availableCount
+                        << " / " << rankCount
+                        << " ranks; enable ndtbl mmap diagnostics and "
+                        << "mmap-backed reads" << endl;
+                }
+                else
+                {
+                    Info<< "  cache/mincore: resident MiB min/avg/max = "
+                        << residentBytesMin*bytesToMiB << " / "
+                        << (residentBytes/rankCount)*bytesToMiB << " / "
+                        << residentBytesMax*bytesToMiB
+                        << "; fraction min/avg/max = "
+                        << residentFractionMin << " / "
+                        << residentFractionSum/rankCount << " / "
+                        << residentFractionMax
+                        << "; mapped MiB max = "
+                        << totalBytesMax*bytesToMiB << endl;
                 }
 
-                Info<< "resident fraction min/avg/max = "
-                    << residentFractionMin << " / "
-                    << residentFractionSum/rankCount << " / "
-                    << residentFractionMax
-                    << ", resident MiB min/avg/max = "
-                    << residentBytesMin*bytesToMiB << " / "
-                    << (residentBytes/rankCount)*bytesToMiB << " / "
-                    << residentBytesMax*bytesToMiB
-                    << ", mapped MiB max = " << totalBytesMax*bytesToMiB
-                    << endl;
+                if (smapsAvailableCount != rankCount)
+                {
+                    Info<< "  mapping/smaps: available on "
+                        << smapsAvailableCount << " / " << rankCount
+                        << " ranks" << endl;
+                }
+                else
+                {
+                    Info<< "  mapping/smaps: RSS MiB min/avg/max = "
+                        << smapsRssBytesMin*bytesToMiB << " / "
+                        << (smapsRssBytesSum/rankCount)*bytesToMiB << " / "
+                        << smapsRssBytesMax*bytesToMiB;
+                    if (smapsLockedAvailableCount == rankCount)
+                    {
+                        Info<< "; Locked MiB min/avg/max = "
+                            << smapsLockedBytesMin*bytesToMiB << " / "
+                            << (smapsLockedBytesSum/rankCount)*bytesToMiB
+                            << " / " << smapsLockedBytesMax*bytesToMiB
+                            << "; locked fraction min/avg/max = "
+                            << smapsLockedFractionMin << " / "
+                            << smapsLockedFractionSum/rankCount << " / "
+                            << smapsLockedFractionMax;
+                    }
+                    else
+                    {
+                        Info<< "; Locked available on "
+                            << smapsLockedAvailableCount << " / "
+                            << rankCount << " ranks";
+                    }
+                    Info<< "; mapping MiB max = "
+                        << smapsMappingBytesMax*bytesToMiB << endl;
+                }
+
+                Info<< "  lock policy: on-fault = " << onFaultCount << " / "
+                    << rankCount << " ranks; eager = " << eagerCount << " / "
+                    << rankCount << "; unlocked = " << unlockedCount << " / "
+                    << rankCount << "; unknown = " << unknownCount << " / "
+                    << rankCount << endl;
             }
         }
+
+        writeResidencyTsv(runTime, tsvRows.str());
+        ++residencyReportSample_;
     }
 };
 

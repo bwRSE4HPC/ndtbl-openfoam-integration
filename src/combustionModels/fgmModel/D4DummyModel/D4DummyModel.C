@@ -297,7 +297,7 @@ void Foam::combustionModels::D4DummyModel::reportTableResidency
         return;
     }
 
-    solver_.reportResidency(label);
+    solver_.reportResidency(label, this->mesh().time());
 }
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
