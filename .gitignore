@@ -14,18 +14,6 @@ tutorials/D3TransCube/constant/polyMesh/
 tutorials/D3TransCube/constant/*_table
 tutorials/D3TransCube/processor*/
 tutorials/D3TransCube/tables/
-tutorials/D4PassiveScalarTransport/0/
-tutorials/D4PassiveScalarTransport/1/
-tutorials/D4PassiveScalarTransport/2/
-tutorials/D4PassiveScalarTransport/3/
-tutorials/D4PassiveScalarTransport/4/
-tutorials/D4PassiveScalarTransport/5/
-tutorials/D4PassiveScalarTransport/benchmark-results/
-tutorials/D4PassiveScalarTransport/constant/polyMesh/
-tutorials/D4PassiveScalarTransport/constant/*_table
-tutorials/D4PassiveScalarTransport/tables/
-
-
 
 # ndtbl binary files
 *.ndtbl

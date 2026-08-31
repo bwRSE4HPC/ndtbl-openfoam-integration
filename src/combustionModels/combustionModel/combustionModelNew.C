@@ -79,25 +79,6 @@ Foam::autoPtr<Foam::combustionModel> Foam::combustionModel::New
             << "combustion model " << modelType << "." << endl;
     }
 
-    const word coeffsModelType(modelType);
-
-    // "fgmModel" is a deprecated alias kept for backwards compatibility with
-    // existing dictionaries; it defaults to D4DummyModel. To select a
-    // specific fgmModel implementation (e.g. D3DummyModel), request it by
-    // its concrete type name directly via requestedModelType.
-    if (modelType == "fgmModel")
-    {
-        modelType = "D4DummyModel";
-
-        WarningInFunction
-            << "'fgmModel' is a deprecated alias and now selects "
-            << modelType << ". To select a specific fgmModel "
-            << "implementation, request it by name, e.g. D3DummyModel."
-            << endl;
-
-        Info<< "Selecting fgm model type " << modelType << endl;
-    }
-
     typename dictionaryConstructorTable::iterator cstrIter =
         dictionaryConstructorTablePtr_->find(modelType);
 
@@ -115,9 +96,7 @@ Foam::autoPtr<Foam::combustionModel> Foam::combustionModel::New
 
     return autoPtr<combustionModel>
     (
-        // Preserve the public selection name for coefficient lookup even
-        // when an internal implementation type backs the alias.
-        cstrIter()(coeffsModelType, thermo, turb, trans, combustionProperties)
+        cstrIter()(modelType, thermo, turb, trans, combustionProperties)
     );
 }
 
