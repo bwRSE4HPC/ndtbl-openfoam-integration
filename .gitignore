@@ -8,6 +8,7 @@ src/combustionModels/lnInclude/
 # Ignore tutorial results and log files
 tutorials/**/log.*
 tutorials/**/dynamicCode/
+tutorials/**/postProcessing/
 tutorials/D3TransCube/0/
 tutorials/D3TransCube/benchmark-results/
 tutorials/D3TransCube/constant/polyMesh/
@@ -23,3 +24,8 @@ tutorials/D3TransCube/tables/
 
 # OpenFoam case files
 *.foam
+
+# Local Python environments and bytecode
+.venv/
+__pycache__/
+*.py[cod]
