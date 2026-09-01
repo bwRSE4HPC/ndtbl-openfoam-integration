@@ -182,9 +182,6 @@ if [ "$DROP_CACHES" = true ]; then
     echo 3 | sudo tee /proc/sys/vm/drop_caches >/dev/null
 fi
 
-# Create mesh
-runApplication blockMesh
-
 if [ "$PARALLEL" = true ]; then
     if [ "$HEAPTRACK" = true ]; then
         echo "HEAPTRACK=true is currently only supported for serial runs." >&2
