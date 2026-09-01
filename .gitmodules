@@ -1,3 +1,3 @@
 [submodule "ext/ndtbl"]
 	path = ext/ndtbl
-	url = git@github.com:thomasisensee/ndtbl.git
+	url = https://github.com/bwrse4hpc/ndtbl.git
