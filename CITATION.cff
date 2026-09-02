@@ -1,6 +1,6 @@
 cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
-title: "ndtblFOAM: An OpenFOAM integration and memory-residency benchmark for ndtbl"
+title: "ndtblIntegrationFoam: An OpenFOAM integration and memory-residency benchmark for ndtbl"
 type: software
 abstract: "OpenFOAM benchmark application and synthetic transport tutorial for evaluating multidimensional table lookup, memory mapping, and page residency with ndtbl."
 authors:
@@ -26,4 +26,4 @@ keywords:
 version: "0.0.1"
 date-released: "2026-04-01"
 license: GPL-3.0-or-later
-repository-code: https://github.com/bwrse4hpc/bwRSE4HPCFoam
+repository-code: https://github.com/bwrse4hpc/ndtbl-openfoam-integration

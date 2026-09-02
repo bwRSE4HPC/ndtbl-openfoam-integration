@@ -207,7 +207,7 @@ if [ "$PARALLEL" = true ]; then
     runApplication decomposePar -dict "$DECOMPOSE_PAR_DICT"
 
     # Run solver in parallel
-    runParallel -np "$NPROCS" bwRSE4HPCFoam
+    runParallel -np "$NPROCS" ndtblIntegrationFoam
 
     # Reconstruct results
     runApplication reconstructPar
@@ -216,7 +216,7 @@ if [ "$PARALLEL" = true ]; then
     rm -rf processor*
 else
     # Serial run
-    runSolver bwRSE4HPCFoam 2>&1 | tee log.bwRSE4HPCFoam
+    runSolver ndtblIntegrationFoam 2>&1 | tee log.ndtblIntegrationFoam
 fi
 
 # Create ParaView/OpenFOAM reader marker

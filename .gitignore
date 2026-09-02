@@ -1,5 +1,5 @@
 # Ignore everything but 'files' and 'options' directories in solver
-applications/solver/bwRSE4HPCFoam/Make/*/
+applications/solver/ndtblIntegrationFoam/Make/*/
 
 # Ignore everything but 'files' and 'options' directories in combustionModels
 src/combustionModels/Make/*/
@@ -9,12 +9,12 @@ src/combustionModels/lnInclude/
 tutorials/**/log.*
 tutorials/**/dynamicCode/
 tutorials/**/postProcessing/
-tutorials/D3TransCube/0/
-tutorials/D3TransCube/benchmark-results/
-tutorials/D3TransCube/constant/polyMesh/
-tutorials/D3TransCube/constant/*_table
-tutorials/D3TransCube/processor*/
-tutorials/D3TransCube/tables/
+tutorials/**/0/
+tutorials/**/benchmark-results/
+tutorials/**/constant/polyMesh/
+tutorials/**/constant/*_table
+tutorials/**/processor*/
+tutorials/**/tables/
 
 # ndtbl binary files
 *.ndtbl

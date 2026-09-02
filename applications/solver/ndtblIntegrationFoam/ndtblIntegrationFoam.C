@@ -24,7 +24,7 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Application
-    bwRSE4HPCFoam
+    ndtblIntegrationFoam
 
 Description
     Dummy solver to evaluate memory requirement and run-time for table look-up

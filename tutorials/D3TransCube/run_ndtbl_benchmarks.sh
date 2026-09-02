@@ -170,7 +170,7 @@ run_case() {
     local mpi_ranks="$3"
     local parallel=false
     local mode="serial"
-    local log_file="$SCRIPT_DIR/log.bwRSE4HPCFoam"
+    local log_file="$SCRIPT_DIR/log.ndtblIntegrationFoam"
 
     if [ "$mpi_ranks" -gt 0 ]; then
         parallel=true

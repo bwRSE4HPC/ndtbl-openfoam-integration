@@ -1,6 +1,6 @@
-# bwRSE4HPCFoam
+# ndtblIntegrationFoam
 
-[![Build](https://github.com/bwRSE4HPC/bwRSE4HPCFoam/actions/workflows/ci.yml/badge.svg)](https://github.com/bwRSE4HPC/bwRSE4HPCFoam/actions)
+[![Build](https://github.com/bwRSE4HPC/ndtbl-openfoam-integration/actions/workflows/ci.yml/badge.svg)](https://github.com/bwRSE4HPC/ndtbl-openfoam-integration/actions)
 
 OpenFOAM benchmark application for multidimensional table lookup with [`ndtbl`](https://github.com/bwRSE4HPC/ndtbl).
 
@@ -16,8 +16,8 @@ The application loads synthetic FGM tables, evaluates them in an OpenFOAM time l
 ## Build
 
 ```bash
-git clone --recurse-submodules https://github.com/bwRSE4HPC/bwRSE4HPCFoam.git
-cd bwRSE4HPCFoam
+git clone --recurse-submodules https://github.com/bwrse4hpc/ndtbl-openfoam-integration.git
+cd ndtbl-openfoam-integration
 
 # Load your OpenFOAM v10 environment first.
 python3 -m pip install ./ext/ndtbl/python/ndtbl
@@ -33,7 +33,7 @@ cd tutorials/D3TransCube
 TABLERESOLUTION=21 PARALLEL=false ./Allrun
 ```
 
-`Allrun` creates the mesh and synthetic table, runs `bwRSE4HPCFoam`, and writes `log.bwRSE4HPCFoam`. Use `./Allclean` to remove generated case data.
+`Allrun` creates the mesh and synthetic table, runs `ndtblIntegrationFoam`, and writes `log.ndtblIntegrationFoam`. Use `./Allclean` to remove generated case data.
 
 Common settings are passed as environment variables:
 
@@ -80,7 +80,7 @@ The current build enables POSIX `mmap`, Linux residency diagnostics, and page lo
 
 ## Repository layout
 
-- `applications/solver/bwRSE4HPCFoam/`: benchmark application
+- `applications/solver/ndtblIntegrationFoam/`: benchmark application
 - `src/combustionModels/`: OpenFOAM models and `ndtbl` integration
 - `tutorials/D3TransCube/`: runnable example and benchmark driver
 - `scripts/`: table-staging helpers for local and Slurm runs

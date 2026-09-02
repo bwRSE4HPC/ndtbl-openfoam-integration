@@ -15,7 +15,7 @@ FoamFile
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-application     bwRSE4HPCFoam;
+application     ndtblIntegrationFoam;
 
 startFrom       startTime;
 
