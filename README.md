@@ -1,6 +1,8 @@
 # ndtblIntegrationFoam
 
+[![License](https://img.shields.io/github/license/bwRSE4HPC/ndtbl-openfoam-integration)](https://opensource.org/license/gpl-3.0)
 [![Build](https://github.com/bwRSE4HPC/ndtbl-openfoam-integration/actions/workflows/ci.yml/badge.svg)](https://github.com/bwRSE4HPC/ndtbl-openfoam-integration/actions)
+[![pre-commit.ci](https://results.pre-commit.ci/badge/github/bwRSE4HPC/ndtbl-openfoam-integration/main.svg)](https://results.pre-commit.ci/latest/github/bwRSE4HPC/ndtbl-openfoam-integration/main)
 
 OpenFOAM benchmark application for multidimensional table lookup with [`ndtbl`](https://github.com/bwRSE4HPC/ndtbl).
 
