@@ -160,12 +160,16 @@ cd "$CASE_DIR" || exit 1
 COMBUSTION_PROPERTIES_BACKUP="$(mktemp \
     "${TMPDIR:-/tmp}/D3TransCube-combustionProperties.XXXXXX")" || exit 1
 cp "$COMBUSTION_PROPERTIES" "$COMBUSTION_PROPERTIES_BACKUP" || exit 1
-restoreCombustionProperties()
+DECOMPOSE_PAR_DICT=""
+cleanupTemporaryFiles()
 {
     cp "$COMBUSTION_PROPERTIES_BACKUP" "$COMBUSTION_PROPERTIES"
     rm -f "$COMBUSTION_PROPERTIES_BACKUP"
+    if [ -n "$DECOMPOSE_PAR_DICT" ]; then
+        rm -f "$DECOMPOSE_PAR_DICT"
+    fi
 }
-trap restoreCombustionProperties EXIT
+trap cleanupTemporaryFiles EXIT
 configureTableFiles
 
 # Copy initial conditions
@@ -192,11 +196,15 @@ if [ "$PARALLEL" = true ]; then
         exit 1
     fi
 
-    sed -i "s/^numberOfSubdomains[[:space:]].*;/numberOfSubdomains $NPROCS;/" \
-        system/decomposeParDict
+    DECOMPOSE_PAR_DICT="$(mktemp \
+        "${TMPDIR:-/tmp}/D3TransCube-decomposeParDict.XXXXXX")" || exit 1
+    sed \
+        -e "s/^numberOfSubdomains[[:space:]].*;/numberOfSubdomains $NPROCS;/" \
+        -e "s/^n[[:space:]].*;/n ($NPROCS 1 1);/" \
+        system/decomposeParDict > "$DECOMPOSE_PAR_DICT" || exit 1
 
     # Decompose case
-    runApplication decomposePar
+    runApplication decomposePar -dict "$DECOMPOSE_PAR_DICT"
 
     # Run solver in parallel
     runParallel -np "$NPROCS" bwRSE4HPCFoam
