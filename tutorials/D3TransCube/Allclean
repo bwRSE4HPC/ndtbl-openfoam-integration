@@ -26,3 +26,6 @@ rm -rf ./postProcessing
 
 # Delete decomposed cases
 rm -rf ./processor[0-9]* ./processors[0-9]*
+
+# Delete dynamicCode
+rm -rf ./dynamicCode
