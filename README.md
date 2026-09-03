@@ -80,6 +80,32 @@ postProcessing/ndtblResidency/<start-time>/residency.tsv
 
 The current build enables POSIX `mmap`, Linux residency diagnostics, and page locking. Ensure that the process memory-lock limit (`ulimit -l`) is large enough for the mapped tables on every MPI rank.
 
+## Reproducing the paper example
+
+The `D3TransCube` tutorial is the synthetic unit-cube transport case used for the memory-residency evaluation in the accompanying ndtbl paper. The published configuration uses a combined, single-precision table with `501^3` points and three fields (approximately 1.44 GiB), five MPI ranks, and a decomposition of `(5 1 1)`. The figure in the paper places ranks 0--2 on one node and ranks 3--4 on a second node.
+
+After building the application, run the paper configuration from an allocation whose MPI placement gives the required three-rank/two-rank node split:
+
+```bash
+cd tutorials/D3TransCube
+TABLERESOLUTION=501 \
+TABLE_SUFFIX=f \
+TABLE_LAYOUT=combined \
+PARALLEL=true \
+NPROCS=5 \
+./Allrun
+```
+
+On a cluster, set `TMPDIR` to node-local storage if the shared table should be copied once per allocated node. In a Slurm allocation, the staging helper uses `srun` for those per-node copies. The script advises the kernel to evict the generated or staged table from the page cache before the solver starts; a completely cold cache and the resulting timing still depend on the operating system and other activity on the nodes.
+
+The diagnostics used by the paper are written to:
+
+```text
+tutorials/D3TransCube/postProcessing/ndtblResidency/0/residency.tsv
+```
+
+The compile-time mmap configuration is recorded in `src/combustionModels/Make/options`. For the paper configuration, mmap and diagnostics are enabled, population is disabled. Generating the full table requires several GiB of free memory and disk space; the memory-lock limit must permit approximately 1.44 GiB per rank.
+
 ## Repository layout
 
 - `applications/solver/ndtblIntegrationFoam/`: benchmark application
@@ -90,6 +116,6 @@ The current build enables POSIX `mmap`, Linux residency diagnostics, and page lo
 
 ## Citation and license
 
-Citation metadata is provided in [`CITATION.cff`](CITATION.cff).
+Citation metadata is provided in [`CITATION.cff`](CITATION.cff). For reproducible scholarly use, cite the archived release rather than the moving default branch.
 
-This project is licensed under GPL-3.0-or-later. The `ndtbl` submodule is licensed separately under the MIT License.
+This project is licensed under GPL-3.0-or-later. The [`ndtbl`](https://github.com/bwRSE4HPC/ndtbl) submodule is licensed separately under the MIT License.
