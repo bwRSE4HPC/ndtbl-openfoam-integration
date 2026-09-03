@@ -17,7 +17,9 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
+        with:
+          submodules: recursive
 
       - name: Set up OpenFOAM
         uses: gerlero/setup-openfoam@v1
@@ -28,3 +30,8 @@ jobs:
         shell: bash
         run: |
           ./Allwmake
+
+      - name: Clean up project
+        shell: bash
+        run: |
+          ./Allclean
