@@ -5,10 +5,26 @@ on:
   push:
     branches:
       - main
+    paths:
+      - ".github/workflows/ci.yml"
+      - "applications/**"
+      - "ext/**"
+      - "src/**"
+      - "tutorials/D3TransCube/**"
+      - "Allclean"
+      - "Allwmake"
   # Run on all pull requests to the main branch
   pull_request:
     branches:
       - main
+    paths:
+      - ".github/workflows/ci.yml"
+      - "applications/**"
+      - "ext/**"
+      - "src/**"
+      - "tutorials/D3TransCube/**"
+      - "Allclean"
+      - "Allwmake"
   # Run upon manual triggers through the 'Actions' tab of the Github UI
   workflow_dispatch:
 
