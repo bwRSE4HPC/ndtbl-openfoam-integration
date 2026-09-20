@@ -1,161 +1,123 @@
-# bwRSE4HPCFoam Project
+# ndtblIntegrationFoam
 
-[![Build](https://github.com/bwRSE4HPC/bwRSE4HPCFoam/actions/workflows/ci.yml/badge.svg)](https://github.com/bwRSE4HPC/bwRSE4HPCFoam/actions)
+[![License](https://img.shields.io/github/license/bwRSE4HPC/ndtbl-openfoam-integration)](https://opensource.org/license/gpl-3.0)
+[![Build](https://github.com/bwRSE4HPC/ndtbl-openfoam-integration/actions/workflows/ci.yml/badge.svg)](https://github.com/bwRSE4HPC/ndtbl-openfoam-integration/actions)
+[![pre-commit.ci](https://results.pre-commit.ci/badge/github/bwRSE4HPC/ndtbl-openfoam-integration/main.svg)](https://results.pre-commit.ci/latest/github/bwRSE4HPC/ndtbl-openfoam-integration/main)
 
+OpenFOAM benchmark application for multidimensional table lookup with [`ndtbl`](https://github.com/bwRSE4HPC/ndtbl).
 
-## What this repo is
+The application loads synthetic FGM tables, evaluates them in an OpenFOAM time loop, and reports initialization time, lookup time, memory use, and memory-map residency. It is a benchmark and integration example, not a general-purpose CFD solver.
 
-This repository is a small OpenFOAM extension focused on benchmarking
-memory use and runtime for tabulated combustion lookups, not on running a
-full CFD time-marching solver.
+## Requirements
 
-At a high level it provides:
+- Linux
+- OpenFOAM Foundation v10
+- Python 3.11 or newer
+- MPI for parallel runs (normally provided with OpenFOAM)
 
-- A custom OpenFOAM application: `bwRSE4HPCFoam`
-- A custom user library: `libbwRSE4HPCcombustionModels`
-- A tutorial case: `tutorials/D4DummySetup`
+## Build
 
-The codebase is compact: about 66 files total, with roughly 2,073 lines of
-`.C`/`.H` source under `src/` and `applications/`.
+```bash
+git clone --recurse-submodules https://github.com/bwrse4hpc/ndtbl-openfoam-integration.git
+cd ndtbl-openfoam-integration
 
-## Core idea
+# Load your OpenFOAM v10 environment first.
+python3 -m pip install ./ext/ndtbl/python/ndtbl
+./Allwmake
+```
 
-The solver initializes an OpenFOAM case, constructs the thermodynamics and
-transport models, instantiates a custom combustion model, performs exactly one
-`reaction->correct()` call, and reports:
+Build products are written to `FOAM_USER_LIBBIN` and `FOAM_USER_APPBIN`.
 
-- combustion model initialization time
-- table lookup time
-- total CPU time
-- resident memory usage (summed across MPI ranks)
+## Run the example
 
-So this is essentially a synthetic benchmark harness for table interpolation in
-an OpenFOAM-style combustion model.
+```bash
+cd tutorials/D3TransCube
+TABLERESOLUTION=21 PARALLEL=false ./Allrun
+```
 
-## Main components
+`Allrun` creates the mesh and synthetic table, runs `ndtblIntegrationFoam`, and writes `log.ndtblIntegrationFoam`. Use `./Allclean` to remove generated case data.
 
-### 1. Solver application
+Common settings are passed as environment variables:
 
-`applications/solver/bwRSE4HPCFoam/bwRSE4HPCFoam.C`
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `TABLERESOLUTION` | `101` | Points per table axis |
+| `TABLE_SUFFIX` | `f` | Values stored as `f` (float32) or `d` (float64) |
+| `TABLE_LAYOUT` | `combined` | One combined file or `split` files |
+| `PARALLEL` | `true` | Enable an MPI run |
+| `NPROCS` | `4` | Number of MPI ranks |
+| `TABLE_SOURCE` | unset | Use a pre-generated table instead of generating one |
+| `TMPDIR` | unset | Stage tables on node-local storage |
 
-- Entry point for the benchmark executable.
-- Uses standard OpenFOAM setup snippets (`createTime.H`, `createMesh.H`,
-  `createFields.H`, etc.).
-- Creates the selected combustion model via `combustionModel::New(...)`.
-- Calls `reaction->correct()` once.
-- Reads `/proc/self/status` to estimate RSS memory and reduces it across MPI
-  processes with `Foam::reduce`.
+Example parallel run:
 
-`applications/solver/bwRSE4HPCFoam/createFields.H`
+```bash
+TABLERESOLUTION=101 TABLE_LAYOUT=split NPROCS=4 ./Allrun
+```
 
-- Builds thermodynamics, velocity, pressure, turbulence, and transport fields.
-- Instantiates the custom combustion model.
-- Records initialization timing around that construction.
+## Benchmark sweep
 
-### 2. Combustion model framework
+```bash
+cd tutorials/D3TransCube
+./run_ndtbl_benchmarks.sh \
+    --resolution 21 \
+    --resolution 101 \
+    --table-layout combined \
+    --table-layout split \
+    --mpi 0 \
+    --mpi 4
+```
 
-`src/combustionModels/combustionModel/*`
+Results and solver logs are written to `tutorials/D3TransCube/benchmark-results/`. Run the script with `--help` for all options.
 
-- `combustionModel` is the abstract base class.
-- It stores references to mesh, thermo, turbulence, and transport models.
-- Selection is done through OpenFOAM's runtime selection table.
-- `combustionModel::New(...)` reads `constant/combustionProperties` and chooses
-  the implementation.
+## Memory diagnostics
 
-Important detail:
+Set `ndtblDiagnostics true` in `constant/combustionProperties` to write rank-level diagnostics to:
 
-- If the dictionary selects `fgmModel`, the factory rewrites that to
-  `D4DummyModel`.
-- That means `fgmModel` acts more like a user-facing alias than a directly
-  instantiated class in this repo.
+```text
+postProcessing/ndtblResidency/<start-time>/residency.tsv
+```
 
-### 3. Dummy FGM model
+The current build enables POSIX `mmap`, Linux residency diagnostics, and page locking. Ensure that the process memory-lock limit (`ulimit -l`) is large enough for the mapped tables on every MPI rank.
 
-`src/combustionModels/fgmModel/D4DummyModel/*`
+## Reproducing the paper example
 
-- `D4DummyModel` is the only real active tabulated model here.
-- It reads four scalar fields from the case: `Param1`, `Param2`, `Param3`,
-  `Param4`.
-- It computes four output fields: `Table1`, `Table2`, `Table3`, `Table4`.
-- In `correct()`, it performs a 4D interpolation for every internal cell and
-  every boundary face.
+The `D3TransCube` tutorial is the synthetic unit-cube transport case used for the memory-residency evaluation in the accompanying ndtbl paper. The published configuration uses a combined, single-precision table with `501^3` points and three fields (approximately 1.44 GiB), five MPI ranks, and a decomposition of `(5 1 1)`. The figure in the paper places ranks 0--2 on one node and ranks 3--4 on a second node.
 
-This is the heart of the benchmark.
+After building the application, run the paper configuration from an allocation whose MPI placement gives the required three-rank/two-rank node split:
 
-### 4. Table lookup support
+```bash
+cd tutorials/D3TransCube
+TABLERESOLUTION=501 \
+TABLE_SUFFIX=f \
+TABLE_LAYOUT=combined \
+PARALLEL=true \
+NPROCS=5 \
+./Allrun
+```
 
-`src/combustionModels/tableSolver/*`
+On a cluster, set `TMPDIR` to node-local storage if the shared table should be copied once per allocated node. In a Slurm allocation, the staging helper uses `srun` for those per-node copies. The script advises the kernel to evict the generated or staged table from the page cache before the solver starts; a completely cold cache and the resulting timing still depend on the operating system and other activity on the nodes.
 
-- `tableSolver` owns the loaded tables and the interpolation helpers.
-- It converts normalized input coordinates into upper-bound indices and local
-  interpolation positions.
+The diagnostics used by the paper are written to:
 
-`src/combustionModels/multidimensionalTable/*`
+```text
+tutorials/D3TransCube/postProcessing/ndtblResidency/0/residency.tsv
+```
 
-- `multidimensionalTable` is an abstract table container.
-- The selected implementation is chosen by the number of parameters.
-- With four parameters, it selects `D4LinearInterpolation`.
+The compile-time mmap configuration is recorded in `src/combustionModels/Make/options`. For the paper configuration, mmap and diagnostics are enabled, population is disabled. Generating the full table requires several GiB of free memory and disk space; the memory-lock limit must permit approximately 1.44 GiB per rank.
 
-`src/combustionModels/multidimensionalTable/D4LinearInterpolation/*`
+## Repository layout
 
-- Stores a 4D nested list loaded from an OpenFOAM dictionary.
-- Performs explicit 4D linear interpolation.
+- `applications/solver/ndtblIntegrationFoam/`: benchmark application
+- `src/combustionModels/`: OpenFOAM models and `ndtbl` integration
+- `tutorials/D3TransCube/`: runnable example and benchmark driver
+- `scripts/`: table-staging helpers for local and Slurm runs
+- `ext/ndtbl/`: pinned `ndtbl` submodule
 
-### 5. Fallback model
+## Citation and license
 
-`src/combustionModels/noCombustion/*`
+Citation metadata is provided in [`CITATION.cff`](CITATION.cff). For reproducible scholarly use, cite the archived release rather than the moving default branch.
 
-- Minimal no-op model used as the default if no combustion dictionary is found.
-- `correct()` does nothing.
+This project is licensed under [GPL-3.0-or-later](LICENSE.md). See [NOTICE.md](NOTICE.md) for copyright information.
 
-## How configuration flows
-
-1. The tutorial case sets `combustionModel fgmModel;` in
-   `constant/combustionProperties`.
-2. The factory maps `fgmModel` to `D4DummyModel`.
-3. `D4DummyModel` expects the case to provide:
-   - `0/Param1` through `0/Param4`
-   - `constant/Table1_table` through `constant/Table4_table`
-4. `tableSolver` loads those table dictionaries.
-5. `correct()` interpolates the tabulated values into `Table1` through `Table4`.
-
-## Build and run
-
-Top-level helper scripts:
-
-- `Allwmake`: builds the library and solver with `wmake`
-- `Allclean`: cleans the library and solver artifacts
-
-Tutorial helper scripts:
-
-- `tutorials/D4DummySetup/Allrun`
-  - symlinks a chosen table resolution into `constant/`
-  - copies `0_orig` to `0`
-  - runs `blockMesh`
-  - optionally decomposes and runs `bwRSE4HPCFoam` under MPI
-- `tutorials/D4DummySetup/Allclean`
-  - removes generated times, logs, mesh, and linked tables
-
-The tutorial is clearly the intended way to exercise the benchmark.
-
-## Practical observations
-
-- This code is tightly coupled to OpenFOAM conventions and build tooling.
-- The solver is intentionally minimal: it is measuring setup and lookup cost,
-  not solving a full transient problem.
-- The interpolation path is specialized for exactly four dimensions in the
-  provided implementation.
-- Some tutorial metadata looks inherited from older cases (for example
-  `system/controlDict` still says `application fgmFoam`), but `Allrun` actually
-  launches `bwRSE4HPCFoam`.
-
-## What to look at first
-
-If you want to understand the repo quickly, start here:
-
-1. `applications/solver/bwRSE4HPCFoam/bwRSE4HPCFoam.C`
-2. `applications/solver/bwRSE4HPCFoam/createFields.H`
-3. `src/combustionModels/combustionModel/combustionModelNew.C`
-4. `src/combustionModels/fgmModel/D4DummyModel/D4DummyModel.C`
-5. `src/combustionModels/tableSolver/tableSolver/tableSolver.C`
-6. `src/combustionModels/multidimensionalTable/D4LinearInterpolation/D4LinearInterpolation.C`
+The [`ndtbl`](https://github.com/bwRSE4HPC/ndtbl) submodule is licensed separately under the [MIT License](ext/ndtbl/LICENSE.md). Its copyright holders are listed in [ext/ndtbl/COPYING.md](ext/ndtbl/COPYING.md).

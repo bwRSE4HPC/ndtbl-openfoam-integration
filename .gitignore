@@ -1,11 +1,31 @@
-applications/solver/bwRSE4HPCFoam/Make/*/
+# Ignore everything but 'files' and 'options' directories in solver
+applications/solver/ndtblIntegrationFoam/Make/*/
 
+# Ignore everything but 'files' and 'options' directories in combustionModels
 src/combustionModels/Make/*/
 src/combustionModels/lnInclude/
 
-tutorials/D4DummySetup/0/
-tutorials/D4DummySetup/1/
-tutorials/D4DummySetup/tables/
-tutorials/D4DummySetup/constant/polyMesh/
-tutorials/D4DummySetup/constant/*_table
+# Ignore tutorial results and log files
 tutorials/**/log.*
+tutorials/**/dynamicCode/
+tutorials/**/postProcessing/
+tutorials/**/0/
+tutorials/**/benchmark-results/
+tutorials/**/constant/polyMesh/
+tutorials/**/constant/*_table
+tutorials/**/processor*/
+tutorials/**/tables/
+
+# ndtbl binary files
+*.ndtbl
+
+# Ignore heaptrack output files
+*.zst
+
+# OpenFoam case files
+*.foam
+
+# Local Python environments and bytecode
+.venv/
+__pycache__/
+*.py[cod]

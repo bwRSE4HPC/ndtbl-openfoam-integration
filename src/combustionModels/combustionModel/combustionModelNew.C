@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 /*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
@@ -36,6 +38,7 @@ Foam::autoPtr<Foam::combustionModel> Foam::combustionModel::New
     const word& combustionProperties
 )
 {
+    word requestedModelType(combustionModels::noCombustion::typeName);
     typeIOobject<IOdictionary> combIO
     (
         IOobject
@@ -49,10 +52,10 @@ Foam::autoPtr<Foam::combustionModel> Foam::combustionModel::New
         )
     );
 
-    word modelType(combustionModels::noCombustion::typeName);
     if (combIO.headerOk())
     {
-        IOdictionary(combIO).lookup(combustionModel::typeName) >> modelType;
+        IOdictionary(combIO).lookup(combustionModel::typeName)
+            >> requestedModelType;
     }
     else
     {
@@ -61,7 +64,9 @@ Foam::autoPtr<Foam::combustionModel> Foam::combustionModel::New
             << " not found" << endl;
     }
 
-    Info<< "Selecting combustion model " << modelType << endl;
+    Info<< "Selecting combustion model " << requestedModelType << endl;
+
+    word modelType(requestedModelType);
 
     const wordList cmpts2(basicThermo::splitThermoName(modelType, 2));
     const wordList cmpts3(basicThermo::splitThermoName(modelType, 3));
@@ -74,13 +79,6 @@ Foam::autoPtr<Foam::combustionModel> Foam::combustionModel::New
             << combustionModel::typeName << ". This information is now "
             << "obtained directly from the thermodynamics. Actually selecting "
             << "combustion model " << modelType << "." << endl;
-    }
-
-    // Select fgmModel
-    if (modelType == "fgmModel")
-    {
-        modelType = "D4DummyModel";
-        Info<< "Selecting fgm model type " << modelType << endl;
     }
 
     typename dictionaryConstructorTable::iterator cstrIter =
