@@ -12,9 +12,9 @@ EXE_INC = \
     -I$(LIB_SRC)/meshTools/lnInclude \
     -I../../ext/ndtbl/include \
     -DNDTBL_ENABLE_MMAP=1 \
-    -DNDTBL_ENABLE_MMAP_DIAGNOSTICS=1 \
+    -DNDTBL_ENABLE_MMAP_DIAGNOSTICS=0 \
     -DNDTBL_ENABLE_MMAP_POPULATE=0 \
-    -DNDTBL_ENABLE_MMAP_LOCK=1
+    -DNDTBL_ENABLE_MMAP_LOCK=0
 
 LIB_LIBS = \
     -lmomentumTransportModels \
