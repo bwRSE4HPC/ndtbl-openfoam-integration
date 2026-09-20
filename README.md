@@ -76,9 +76,18 @@ Set `ndtblDiagnostics true` in `constant/combustionProperties` to write rank-lev
 
 ```text
 postProcessing/ndtblResidency/<start-time>/residency.tsv
+postProcessing/ndtblResidency/<start-time>/numa.tsv
 ```
 
-The current build enables POSIX `mmap`, Linux residency diagnostics, and page locking. Ensure that the process memory-lock limit (`ulimit -l`) is large enough for the mapped tables on every MPI rank.
+`residency.tsv` retains its version-1 format. `numa.tsv` has its own `# ndtbl_numa_tsv_version=1` header and these columns:
+
+```text
+sample time label group rank host numa_available policy kernel_page_size_bytes numa_node pages
+```
+
+Both files use the same residency snapshot at each diagnostic sample. The master rank writes gathered records from all ranks. NUMA records contain one row per reported NUMA node, with page counts for the whole mapping containing the table payload. Join the files on `(sample, rank, group)` within a run; interpret NUMA node IDs together with `host`.
+
+If NUMA information is unavailable, a placeholder row has `numa_available=0` and `nan` for policy, page size, node, and page count. An available mapping with no node counters has `numa_available=1`, retains its policy and any known page size, and uses `nan` for node and page count. An unknown kernel page size is also `nan`. Zero page counts remain zero. Raw proc lines are not written.
 
 ## Reproducing the paper example
 

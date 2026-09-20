@@ -15,6 +15,7 @@
 #include "wordList.H"
 
 #include "ndtbl/ndtbl.hpp"
+#include "numaDiagnostics.H"
 
 #include <array>
 #include <cstdlib>
@@ -255,11 +256,17 @@ private:
     /// Index of the next residency report written by this solver instance.
     mutable std::size_t residencyReportSample_;
 
-    /// Whether the current start-time TSV has received its version/header.
+    /// Whether both current start-time TSVs have received their version/header.
     mutable bool residencyTsvInitialized_;
 
-    /// Write gathered version-1 TSV rows from the master process.
-    void writeResidencyTsv(const Time& runTime, const std::string& rows) const
+    /// Write gathered diagnostic rows from the master process.
+    void writeDiagnosticsTsv
+    (
+        const Time& runTime,
+        const char* name,
+        const std::string& header,
+        const std::string& rows
+    ) const
     {
         if (!Pstream::master())
         {
@@ -270,12 +277,17 @@ private:
             runTime.timeName(runTime.startTime().value());
         const fileName outputDir =
             runTime.globalPath()/"postProcessing"/"ndtblResidency"/startTimeName;
-        const fileName outputPath = outputDir/"residency.tsv";
+        const fileName outputPath = outputDir/name;
 
-        if (!residencyTsvInitialized_ && !Foam::mkDir(outputDir))
+        if
+        (
+            !residencyTsvInitialized_
+         && !Foam::isDir(outputDir)
+         && !Foam::mkDir(outputDir)
+        )
         {
             FatalErrorInFunction
-                << "Failed to create ndtbl residency output directory "
+                << "Failed to create ndtbl diagnostics output directory "
                 << outputDir << exit(FatalError);
         }
 
@@ -288,26 +300,13 @@ private:
         if (!output.is_open())
         {
             FatalErrorInFunction
-                << "Failed to open ndtbl residency output file " << outputPath
+                << "Failed to open ndtbl diagnostics output file " << outputPath
                 << exit(FatalError);
         }
 
         if (!residencyTsvInitialized_)
         {
-            output
-                << "# ndtbl_residency_tsv_version=1\n"
-                << "sample\ttime\tlabel\telapsed_clock_s\telapsed_cpu_s"
-                << "\tgroup\trank\thost\tfile\trealpath"
-                << "\tmincore_available\tpage_size_bytes\ttotal_pages"
-                << "\tresident_pages\tresident_bytes\tresident_fraction"
-                << "\tsmaps_available\tsmaps_mapping_bytes"
-                << "\tsmaps_rss_bytes\tsmaps_pss_bytes"
-                << "\tsmaps_shared_clean_bytes\tsmaps_shared_dirty_bytes"
-                << "\tsmaps_private_clean_bytes\tsmaps_private_dirty_bytes"
-                << "\tsmaps_locked_available\tsmaps_locked_bytes"
-                << "\tsmaps_vm_flags_available\tsmaps_lock_enabled"
-                << "\tsmaps_lock_on_fault\tprocess_vmlck_available"
-                << "\tprocess_vmlck_bytes\n";
+            output << header;
         }
 
         output << rows;
@@ -315,7 +314,7 @@ private:
         if (!output.good())
         {
             FatalErrorInFunction
-                << "Failed to write ndtbl residency output file " << outputPath
+                << "Failed to write ndtbl diagnostics output file " << outputPath
                 << exit(FatalError);
         }
 
@@ -323,11 +322,9 @@ private:
         if (output.fail())
         {
             FatalErrorInFunction
-                << "Failed to close ndtbl residency output file " << outputPath
+                << "Failed to close ndtbl diagnostics output file " << outputPath
                 << exit(FatalError);
         }
-
-        residencyTsvInitialized_ = true;
     }
 
     /// Return reusable per-thread storage for full-field interpolation results.
@@ -555,6 +552,7 @@ public:
         const scalar bytesToMiB = 1.0/(1024.0*1024.0);
         const std::string host = detail::hostName();
         std::ostringstream tsvRows;
+        std::ostringstream numaRows;
 
         for (std::size_t groupI = 0; groupI < groups_.size(); ++groupI)
         {
@@ -584,6 +582,20 @@ public:
                 resolvedFile,
                 info
             );
+            const std::string localNumaRows = detail::numaTsvRows
+            (
+                residencyReportSample_,
+                runTime.value(),
+                std::string(label.c_str()),
+                groupI,
+                Pstream::myProcNo(),
+                host,
+                info
+            );
+            List<string> rankNumaRows(Pstream::nProcs());
+            rankNumaRows[Pstream::myProcNo()] = localNumaRows;
+            Pstream::gatherList(rankNumaRows);
+
             List<string> rankTsvRows(Pstream::nProcs());
             rankTsvRows[Pstream::myProcNo()] = localTsvRow;
             Pstream::gatherList(rankTsvRows);
@@ -592,6 +604,7 @@ public:
                 forAll(rankTsvRows, rankI)
                 {
                     tsvRows << rankTsvRows[rankI].c_str();
+                    numaRows << rankNumaRows[rankI].c_str();
                 }
             }
 
@@ -1004,7 +1017,29 @@ public:
             }
         }
 
-        writeResidencyTsv(runTime, tsvRows.str());
+        const std::string residencyHeader =
+            "# ndtbl_residency_tsv_version=1\n"
+            "sample\ttime\tlabel\telapsed_clock_s\telapsed_cpu_s"
+            "\tgroup\trank\thost\tfile\trealpath"
+            "\tmincore_available\tpage_size_bytes\ttotal_pages"
+            "\tresident_pages\tresident_bytes\tresident_fraction"
+            "\tsmaps_available\tsmaps_mapping_bytes"
+            "\tsmaps_rss_bytes\tsmaps_pss_bytes"
+            "\tsmaps_shared_clean_bytes\tsmaps_shared_dirty_bytes"
+            "\tsmaps_private_clean_bytes\tsmaps_private_dirty_bytes"
+            "\tsmaps_locked_available\tsmaps_locked_bytes"
+            "\tsmaps_vm_flags_available\tsmaps_lock_enabled"
+            "\tsmaps_lock_on_fault\tprocess_vmlck_available"
+            "\tprocess_vmlck_bytes\n";
+        writeDiagnosticsTsv
+        (
+            runTime, "residency.tsv", residencyHeader, tsvRows.str()
+        );
+        writeDiagnosticsTsv
+        (
+            runTime, "numa.tsv", detail::numaTsvHeader(), numaRows.str()
+        );
+        residencyTsvInitialized_ = true;
         ++residencyReportSample_;
     }
 };
