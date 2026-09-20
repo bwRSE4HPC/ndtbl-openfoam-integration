@@ -118,4 +118,6 @@ The compile-time mmap configuration is recorded in `src/combustionModels/Make/op
 
 Citation metadata is provided in [`CITATION.cff`](CITATION.cff). For reproducible scholarly use, cite the archived release rather than the moving default branch.
 
-This project is licensed under GPL-3.0-or-later. The [`ndtbl`](https://github.com/bwRSE4HPC/ndtbl) submodule is licensed separately under the MIT License.
+This project is licensed under [GPL-3.0-or-later](LICENSE.md). See [NOTICE.md](NOTICE.md) for copyright information.
+
+The [`ndtbl`](https://github.com/bwRSE4HPC/ndtbl) submodule is licensed separately under the [MIT License](ext/ndtbl/LICENSE.md). Its copyright holders are listed in [ext/ndtbl/COPYING.md](ext/ndtbl/COPYING.md).
