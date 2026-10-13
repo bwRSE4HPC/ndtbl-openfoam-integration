@@ -4,6 +4,6 @@ makeType=${1:-libso}
 set -x
 
 wclean ./src/combustionModels
-wclean ./applications/solver/bwRSE4HPCFoam
+wclean ./applications/solver/ndtblIntegrationFoam
 
 # ----------------------------------------------------------------- end-of-file

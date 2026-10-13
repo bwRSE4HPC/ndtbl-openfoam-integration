@@ -4,7 +4,7 @@ makeType=${1:-libso}
 set -x
 
 wmake ./src/combustionModels
-wmake ./applications/solver/bwRSE4HPCFoam
+wmake ./applications/solver/ndtblIntegrationFoam
 
 
 # ----------------------------------------------------------------- end-of-file

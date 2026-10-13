@@ -1,0 +1,53 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  10                                    |
+|   \\  /    A nd           | Web:      www.OpenFOAM.org                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    format      ascii;
+    class       dictionary;
+    location    "constant";
+    object      combustionProperties;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+combustionModel  D3DummyModel;
+
+D3DummyModelCoeffs
+{
+    // Diffusion off
+    gammaParam   0;
+    rhoParam     1;
+
+    ndtblDiagnostics true;
+    ndtblRankDiagnostics true;
+
+    // Optional ndtbl interpolation method. Default is linear.
+    //interpolation cubic;
+
+    ndtblTables
+    {
+        Table1
+        {
+            file  "constant/Tables.ndtbl";
+            field Table1;
+        }
+
+        Table2
+        {
+            file  "constant/Tables.ndtbl";
+            field Table2;
+        }
+
+        Table3
+        {
+            file  "constant/Tables.ndtbl";
+            field Table3;
+        }
+    }
+}
+
+// ************************************************************************* //

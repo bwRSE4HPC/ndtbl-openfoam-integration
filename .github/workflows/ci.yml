@@ -5,26 +5,75 @@ on:
   push:
     branches:
       - main
+    paths:
+      - ".github/workflows/ci.yml"
+      - "applications/**"
+      - "ext/**"
+      - "src/**"
+      - "tutorials/D3TransCube/**"
+      - "Allclean"
+      - "Allwmake"
   # Run on all pull requests to the main branch
   pull_request:
     branches:
       - main
+    paths:
+      - ".github/workflows/ci.yml"
+      - "applications/**"
+      - "ext/**"
+      - "src/**"
+      - "tutorials/D3TransCube/**"
+      - "Allclean"
+      - "Allwmake"
   # Run upon manual triggers through the 'Actions' tab of the Github UI
   workflow_dispatch:
 
 jobs:
-  build:
+  build-and-run:
     runs-on: ubuntu-22.04
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
+        with:
+          submodules: recursive
 
       - name: Set up OpenFOAM
         uses: gerlero/setup-openfoam@v1
         with:
           openfoam-version: 10
 
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+
+      - name: Install ndtbl Python package
+        run: python -m pip install -v ./ext/ndtbl/python/ndtbl
+
       - name: Build project
         shell: bash
         run: |
           ./Allwmake
+
+      - name: Run reduced D3TransCube tutorial test
+        shell: bash
+        run: |
+          sed -i \
+            -e 's/^resx 100;/resx 8;/' \
+            -e 's/^resy 100;/resy 8;/' \
+            -e 's/^resz 100;/resz 8;/' \
+            tutorials/D3TransCube/system/blockMeshDict
+          sed -i \
+            -e 's/^endTime[[:space:]]*0.2;/endTime         0.002;/' \
+            -e 's/^writeInterval[[:space:]]*0.02;/writeInterval   0.002;/' \
+            tutorials/D3TransCube/system/controlDict
+          cd tutorials/D3TransCube
+          TABLERESOLUTION=5 PARALLEL=false ./Allrun
+          test -s log.ndtblIntegrationFoam
+          test -s postProcessing/ndtblResidency/0/residency.tsv
+
+      - name: Clean up project
+        shell: bash
+        run: |
+          tutorials/D3TransCube/Allclean
+          ./Allclean

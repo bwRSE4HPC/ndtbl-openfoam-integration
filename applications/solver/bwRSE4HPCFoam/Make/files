@@ -1,3 +1,0 @@
-bwRSE4HPCFoam.C
-
-EXE = $(FOAM_USER_APPBIN)/bwRSE4HPCFoam

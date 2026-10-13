@@ -1,0 +1,31 @@
+#!/bin/sh
+. $WM_PROJECT_DIR/bin/tools/RunFunctions
+
+# Delete time folders
+foamListTimes -rm
+rm -rf 0
+
+# Delete log files
+rm -rf ./log*
+
+# Delete mesh
+rm -rf ./constant/polyMesh
+
+# Delete tables
+rm -f \
+    ./constant/Tables.ndtbl \
+    ./constant/Tables.shared.ndtbl \
+    ./constant/Tables.Table*.ndtbl \
+    ./constant/Tables.shared.Table*.ndtbl
+
+# Delete paraview files
+rm -f *.foam
+
+# Delete postProcessing directory
+rm -rf ./postProcessing
+
+# Delete decomposed cases
+rm -rf ./processor[0-9]* ./processors[0-9]*
+
+# Delete dynamicCode
+rm -rf ./dynamicCode
